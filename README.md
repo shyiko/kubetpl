@@ -11,8 +11,6 @@ Features:
 - Support for data (config) files in **YAML** and **.env** (`<key>=<value>`).   
 - Built-in **client-side resource validation** (backed by [kubeval](https://github.com/garethr/kubeval)).
 
-> for Secret management prefer [kubesec](https://github.com/shyiko/kubesec).
-
 ## Installation
 
 #### macOS / Linux
@@ -60,6 +58,7 @@ kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.ktpl -
 
 <details>
   <summary>&lt;project_dir&gt;/k8s/staging.env</summary>
+
 ```ini  
 NAME=sample-app
 REPLICAS=1
@@ -67,6 +66,7 @@ REPLICAS=1
 </details>
 <details>
   <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.ktpl</summary>
+
 ```yml  
 apiVersion: v1
 kind: Service
@@ -127,6 +127,7 @@ spec:
 
 <details>
   <summary>&lt;project_dir&gt;/k8s/staging.env.yml</summary>
+
 ```ini  
 NAME: sample-app
 REPLICAS: 1
@@ -134,6 +135,7 @@ REPLICAS: 1
 </details>
 <details>
   <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.goktpl</summary>
+
 ```yml  
 apiVersion: v1
 kind: Service
