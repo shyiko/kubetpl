@@ -78,7 +78,14 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println(out)
+			if output, _ := cmd.Flags().GetString("output"); output != "" && output != "-" {
+				err := ioutil.WriteFile(output, []byte(out), 0600)
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				fmt.Println(out)
+			}
 			return nil
 		},
 		Example: "  # render template in placeholder format\n" +
@@ -200,6 +207,9 @@ func readConfigFile(path string) (map[string]interface{}, error) {
 }
 
 func readFile(path string) ([]byte, error) {
+	if path == "-" {
+		return ioutil.ReadAll(os.Stdin)
+	}
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		res, err := http.Get(path)
 		if err != nil {
