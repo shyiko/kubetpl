@@ -99,6 +99,7 @@ spec:
         - containerPort: 80
 ```
 </details>
+<p><p>
 
 Executing `kubetpl render k8s/svc-and-deploy.yml.ktpl -c k8s/staging.env -d REPLICAS=3` should yield
 
@@ -137,7 +138,7 @@ Let's say we have the following (click to expand):
 <details>
   <summary>&lt;project_dir&gt;/k8s/staging.env.yml</summary>
 
-```ini  
+```yaml
 NAME: sample-app
 REPLICAS: 1
 ```
@@ -175,6 +176,7 @@ spec:
         - containerPort: 80
 ```
 </details>
+<p><p>
 
 Executing `kubetpl render k8s/svc-and-deploy.yml.goktpl -c k8s/staging.env.yml -d REPLICAS=3` should yield
 
@@ -212,7 +214,7 @@ Let's say we have the following (click to expand):
 <details>
   <summary>&lt;project_dir&gt;/k8s/staging.env.yml</summary>
 
-```ini  
+```yaml
 NAME: sample-app
 ```
 </details>
@@ -267,6 +269,7 @@ parameters:
   parameterType: int
 ```
 </details>
+<p><p>
 
 Executing `kubetpl render k8s/svc-and-deploy.yml -c k8s/staging.env.yml -d REPLICAS=3` should yield
 
