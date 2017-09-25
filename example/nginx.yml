@@ -1,0 +1,52 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: nginx-template
+  annotations:
+    description: nginx template
+labels:
+  template: nginx-template
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: $(NAME)
+  data:
+    index.html: $(MESSAGE)
+- apiVersion: apps/v1beta1
+  kind: Deployment
+  metadata:
+    name: $(NAME)
+  spec:
+    replicas: $((REPLICAS))
+    template:
+      metadata:
+        labels:
+          app: $(NAME)
+      spec:
+        containers:
+        - name: nginx
+          image: nginx:1.7.9
+          ports:
+          - containerPort: 80
+          volumeMounts:
+          - name: $(NAME)-volume
+            mountPath: /usr/share/nginx/html
+        volumes:
+        - name: $(NAME)-volume
+          configMap:
+            name: $(NAME)
+parameters:
+- name: NAME
+  description: Application name
+  required: true
+  parameterType: string
+- name: REPLICAS
+  description: Number of replicas
+  value: 1
+  required: true
+  parameterType: int
+- name: MESSAGE
+  description: Message to display
+  required: true
+  parameterType: string

@@ -1,10 +1,10 @@
 package tpl
 
 import (
-	"os"
 	"fmt"
-	"runtime"
 	"gopkg.in/yaml.v2"
+	"os"
+	"runtime"
 )
 
 type PlaceholderTemplate struct {
@@ -53,13 +53,12 @@ func envsubst(value string, env map[string]interface{}) (res string, err error) 
 		}
 		// https://github.com/ghodss/yaml/blob/master/yaml.go#L130
 		/*
-		switch v := value.(type) {
-		case string: return v
-		...
-		}
+			switch v := value.(type) {
+			case string: return v
+			...
+			}
 		*/
 		return fmt.Sprintf("%v", value)
 	})
 	return
 }
-

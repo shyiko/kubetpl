@@ -4,9 +4,9 @@ Simple yet flexible client-side templating for Kubernetes.
 
 Features:
 - **Template flavour of your choice**.  
-  Start simple ([$variable]()). [Step up your game with go-template|s]() when (and if!) needed). 
+  Start simple ([$variable](#placeholder)). [Step up your game with go-template|s](#go-template) when (and if!) needed). 
    
-  [placeholder]() | [go-template]() are available out-of-box.  
+  [placeholder](#placeholder) | [go-template](#go-template) | [kind-eq-template](#kind-eq-template) are available out-of-box.  
   We also accept PRs for other formats. 
 - Support for data (config) files in **YAML** and **.env** (`<key>=<value>`).   
 - Built-in **client-side resource validation** (backed by [kubeval](https://github.com/garethr/kubeval)).
@@ -56,6 +56,8 @@ kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.ktpl -
 
 ##### Example
 
+Let's say we have the following (click to expand):
+
 <details>
   <summary>&lt;project_dir&gt;/k8s/staging.env</summary>
 
@@ -67,7 +69,7 @@ REPLICAS=1
 <details>
   <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.ktpl</summary>
 
-```yml  
+```yaml  
 apiVersion: v1
 kind: Service
 metadata:
@@ -98,25 +100,30 @@ spec:
 ```
 </details>
 
-```sh
-$ kubetpl render k8s/svc-and-deploy.yml.ktpl -c k8s/staging.env -d REPLICAS=3
- 
-apiVersion: v1
-kind: Service
+Executing `kubetpl render k8s/svc-and-deploy.yml.ktpl -c k8s/staging.env -d REPLICAS=3` should yield
+
+```yaml
+# omitted
 metadata:
-  name: sample-app
+  name: sample-app-service
+spec:
+  selector:
+    app: sample-app
 # omitted
 ---
-apiVersion: apps/v1beta1
-kind: Deployment
+# omitted
 metadata:
   name: sample-app-deployment
 spec:
   replicas: 3
+  template: 
+    metadata:
+      labels:
+        app: sample-app
 # omitted
 ```
 
-`format` is automatically inferred as `placeholder` if filename ends with `.yaml.ktpl` or `.yml.ktpl`. 
+> `--format` is automatically inferred as `placeholder` if filename ends with `.yaml.ktpl` or `.yml.ktpl`. 
 
 #### [go-template](https://golang.org/pkg/text/template/)
 
@@ -124,6 +131,8 @@ spec:
 (with the exception of `env` and `expandenv`).
 
 ##### Example
+
+Let's say we have the following (click to expand):
 
 <details>
   <summary>&lt;project_dir&gt;/k8s/staging.env.yml</summary>
@@ -136,11 +145,11 @@ REPLICAS: 1
 <details>
   <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.goktpl</summary>
 
-```yml  
+```yaml  
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .NAME }}
+  name: {{ .NAME }}-service
 spec:
   selector:
     app: {{ .NAME }}
@@ -167,25 +176,120 @@ spec:
 ```
 </details>
 
-```sh
-$ kubetpl render k8s/svc-and-deploy.yml.goktpl -c k8s/staging.env.yml -d REPLICAS=3
- 
-apiVersion: v1
-kind: Service
+Executing `kubetpl render k8s/svc-and-deploy.yml.goktpl -c k8s/staging.env.yml -d REPLICAS=3` should yield
+
+```yaml
+# omitted
 metadata:
-  name: sample-app
+  name: sample-app-service
+spec:
+  selector:
+    app: sample-app
 # omitted
 ---
-apiVersion: apps/v1beta1
-kind: Deployment
+# omitted
 metadata:
   name: sample-app-deployment
 spec:
   replicas: 3
+  template: 
+    metadata:
+      labels:
+        app: sample-app
 # omitted
 ```
 
-NOTE: `format` is automatically inferred as `go-template` if filename ends with `.yaml.goktpl` or `.yml.goktpl`. 
+> `--format` is automatically inferred as `go-template` if filename ends with `.yaml.goktpl` or `.yml.goktpl`. 
+
+#### kind-eq-template
+
+> aka [kind=Template](https://github.com/fabric8io/kubernetes-model/blob/master/vendor/k8s.io/kubernetes/docs/proposals/templates.md). 
+
+##### Example
+
+Let's say we have the following (click to expand):
+
+<details>
+  <summary>&lt;project_dir&gt;/k8s/staging.env.yml</summary>
+
+```ini  
+NAME: sample-app
+```
+</details>
+<details>
+  <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml</summary>
+
+```yaml  
+kind: Template
+apiVersion: v1
+metadata:
+  name: nginx-template
+  annotations:
+    description: nginx template
+labels:
+  template: nginx-template
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: $(NAME)
+  spec:
+    selector:
+      app: $(NAME)
+    ports:
+    - protocol: TCP
+      port: 80
+- apiVersion: apps/v1beta1
+  kind: Deployment
+  metadata:
+    name: $(NAME)-deployment
+  spec:
+    replicas: $((REPLICAS))
+    template: 
+      metadata:
+        labels:
+          app: $(NAME)
+      spec:
+        containers:
+        - name: nginx
+          image: nginx:1.7.9
+          ports:
+          - containerPort: 80
+parameters:
+- name: NAME
+  description: Application name
+  required: true
+  parameterType: string
+- name: REPLICAS
+  description: Number of replicas
+  value: 1
+  required: true
+  parameterType: int
+```
+</details>
+
+Executing `kubetpl render k8s/svc-and-deploy.yml -c k8s/staging.env.yml -d REPLICAS=3` should yield
+
+```yaml
+# omitted
+metadata:
+  name: sample-app-service
+spec:
+  selector:
+    app: sample-app
+# omitted
+---
+# omitted
+metadata:
+  name: sample-app-deployment
+spec:
+  replicas: 3
+  template: 
+    metadata:
+      labels:
+        app: sample-app
+# omitted
+```
 
 ## Development
 

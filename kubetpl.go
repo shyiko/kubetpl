@@ -1,20 +1,20 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
-	"os"
-	"io/ioutil"
+	log "github.com/Sirupsen/logrus"
+	"github.com/garethr/kubeval/kubeval"
+	"github.com/ghodss/yaml"
+	"github.com/shyiko/kubetpl/tpl"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/ini.v1"
-	"github.com/garethr/kubeval/kubeval"
-	log "github.com/Sirupsen/logrus"
-	"bytes"
-	"strings"
-	"errors"
-	"github.com/shyiko/kubetpl/tpl"
-	"github.com/ghodss/yaml"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
 )
 
 var version string
@@ -59,7 +59,7 @@ func main() {
 		Use:     "render [file]",
 		Aliases: []string{"r"},
 		Short:   "Render template(s)",
-		RunE:func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return pflag.ErrHelp
 			}
@@ -89,12 +89,12 @@ func main() {
 			return nil
 		},
 		Example: "  # render template in placeholder format\n" +
-		"  kubetpl render svc-and-deploy.yml.ktpl -c staging.env -d KEY=VALUE\n" +
-		"  kubetpl render svc-and-deploy.yml --format=placeholder -c staging.env -d KEY=VALUE\n" +
-		"\n" +
-		"  # render template in go-template format\n" +
-		"  kubetpl render svc-and-deploy.yml.goktpl -c staging.yml -p KEY=VALUE\n" +
-		"  kubetpl render svc-and-deploy.yml --format=go-template -c staging.yml -d KEY=VALUE",
+			"  kubetpl render svc-and-deploy.yml.ktpl -c staging.env -d KEY=VALUE\n" +
+			"  kubetpl render svc-and-deploy.yml --format=placeholder -c staging.env -d KEY=VALUE\n" +
+			"\n" +
+			"  # render template in go-template format\n" +
+			"  kubetpl render svc-and-deploy.yml.goktpl -c staging.yml -p KEY=VALUE\n" +
+			"  kubetpl render svc-and-deploy.yml --format=go-template -c staging.yml -d KEY=VALUE",
 	}
 	renderCmd.Flags().StringVarP(&format, "format", "f", "",
 		"Template format (\"placeholder\", \"go-template\")")
@@ -165,6 +165,10 @@ func newTemplate(templateFile string, format string) (tpl.Template, error) {
 		format == "go-template" {
 		return tpl.NewGoTemplate(content)
 	}
+	if hasSuffix(templateFile, ".yml") ||
+		format == "kind-eq-template" {
+		return tpl.NewKindTemplate(content)
+	}
 	if format != "" {
 		return nil, fmt.Errorf("Unknown template format \"%s\"", format)
 	}
@@ -172,7 +176,7 @@ func newTemplate(templateFile string, format string) (tpl.Template, error) {
 	return nil, fmt.Errorf("Unable to infer format of \"%s\"", templateFile)
 }
 
-func hasSuffix(str string, suffix... string) bool {
+func hasSuffix(str string, suffix ...string) bool {
 	for _, suffix := range suffix {
 		if strings.HasSuffix(str, suffix) {
 			return true

@@ -1,6 +1,13 @@
 package tpl
 
-import "testing"
+import (
+	log "github.com/Sirupsen/logrus"
+	"testing"
+)
+
+func init() {
+	log.SetLevel(log.DebugLevel)
+}
 
 func TestGoTemplateRender(t *testing.T) {
 	actual, err := GoTemplate{
@@ -31,7 +38,7 @@ spec:
   replicas: 1
 `
 	if string(actual) != expected {
-		t.Fatalf("actual: %#v != expected: %#v", actual, expected)
+		t.Fatalf("actual: \n%s != expected: \n%s", actual, expected)
 	}
 }
 

@@ -1,6 +1,13 @@
 package tpl
 
-import "testing"
+import (
+	log "github.com/Sirupsen/logrus"
+	"testing"
+)
+
+func init() {
+	log.SetLevel(log.DebugLevel)
+}
 
 func TestPlaceholderTemplateRender(t *testing.T) {
 	actual, err := PlaceholderTemplate{

@@ -2,9 +2,9 @@ package tpl
 
 import (
 	"bytes"
-	"text/template"
-	"github.com/ghodss/yaml"
 	"github.com/Masterminds/sprig"
+	"github.com/ghodss/yaml"
+	"text/template"
 )
 
 type GoTemplate struct {
@@ -16,10 +16,10 @@ func NewGoTemplate(template []byte) (Template, error) {
 }
 
 func (t GoTemplate) Render(param map[string]interface{}) (res []byte, err error) {
-	tmpl, err := template.New("template").  // todo: template name
-		Funcs(funcMap()).
-		Option("missingkey=error").
-		Parse(string(t.template))
+	tmpl, err := template.New("template"). // todo: template name
+						Funcs(funcMap()).
+						Option("missingkey=error").
+						Parse(string(t.template))
 	if err != nil {
 		return nil, err
 	}
