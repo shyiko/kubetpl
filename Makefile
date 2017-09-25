@@ -1,4 +1,3 @@
-
 SHELL := /bin/bash -o pipefail
 VERSION := $(shell git describe --tags --abbrev=0)
 fetch:
@@ -18,7 +17,8 @@ fmt:
 
 test:
 	go vet `go list ./... | grep -v /vendor/`
-	SRC=`find . -type f -name '*.go' -not -path "./vendor/*"` && gofmt -l -s $$SRC | read && gofmt -l -s -d $$SRC && exit 1 || true
+	SRC=`find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.tmp/*"` && \
+		gofmt -l -s $$SRC | read && gofmt -l -s -d $$SRC && exit 1 || true
 	go test -v `go list ./... | grep -v /vendor/` | grep -v "=== RUN"
 
 test-coverage:
