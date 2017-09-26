@@ -4,12 +4,11 @@ Simple yet flexible client-side templating for Kubernetes.
 
 Features:
 - **Template flavour of your choice**.  
-  Start simple ([$variable](#placeholder)). [Step up your game with go-template|s](#go-template) when (and if!) needed). 
+  Start simple ([$VAR](#placeholder)). [Step up your game with go-template|s](#go-template) when (and if!) needed). 
    
-  [placeholder](#placeholder) | [go-template](#go-template) | [kind-eq-template](#kind-eq-template) are available out-of-box.  
+  [placeholder](#placeholder) (aka `$VAR` / `${VAR}`) | [go-template](#go-template) (enriched with [sprig](http://masterminds.github.io/sprig/)) | [template-kind](#template-kind) (aka `kind: Template`) are available out-of-box.  
   We also accept PRs for other formats. 
-- Support for data (config) files in **YAML** and **.env** (`<key>=<value>`).   
-- Built-in **client-side resource validation** (backed by [kubeval](https://github.com/garethr/kubeval)).
+- Support for **\*.env** (`<VAR>=<VAL>`) and **YAML** data (config) files.   
 
 ## Installation
 
@@ -35,24 +34,68 @@ Download binary from the "[release(s)](https://github.com/shyiko/kubetpl/release
 ## Usage
 
 ```sh
-kubetpl render k8s/svc-and-deploy.yml.ktpl -c k8s/staging.env -d KEY=<command_line_override> | 
+# config files can be either in .env (effectively ini without sections)
+$ cat staging.env
+
+NAME=sample-app
+REPLICAS=1
+
+# ... or YAML 
+$ cat staging.env.yml
+
+NAME: sample-app
+REPLICAS: 1
+
+# ... and considering that JSON is a subset of YAML, JSON
+$ cat staging.env.json
+
+{"NAME": "sample-app", "REPLICAS": 1}
+
+# to render "placeholder" (aka $VAR / ${VAR}) type of template
+# (e.g. https://github.com/shyiko/kubetpl/blob/master/example/nginx.yml.kubetpl)
+$ kubetpl render svc-and-deploy.yml.kubetpl -i staging.env -s KEY=VALUE
+# same as above
+$ kubetpl render svc-and-deploy.yml --type=placeholder -i staging.env -s KEY=VALUE
+$ kubetpl render svc-and-deploy.yml -P -i staging.env -s KEY=VALUE
+
+# to render "go-template" type of template
+# (e.g. https://github.com/shyiko/kubetpl/blob/master/example/nginx.yml.kubetpl-go)
+$ kubetpl render svc-and-deploy.yml.kubetpl-go -i staging.yml -s KEY=VALUE
+# same as above
+$ kubetpl render svc-and-deploy.yml --type=go-template -i staging.env -s KEY=VALUE
+$ kubetpl render svc-and-deploy.yml -G -i staging.env -s KEY=VALUE
+
+# to render "template-kind" (aka "kind: Template") type of template
+# (e.g. https://github.com/shyiko/kubetpl/blob/master/example/nginx.yml)
+$ kubetpl render svc-and-deploy.yml -i staging.yml -s KEY=VALUE
+# same as above
+$ kubetpl render svc-and-deploy.yml --type=template-kind -i staging.env -s KEY=VALUE
+$ kubetpl render svc-and-deploy.yml -T -i staging.env -s KEY=VALUE
+
+# to apply template just pipe it through kubectl    
+$ kubetpl render svc-and-deploy.yml.kubetpl -i k8s/staging.env | 
   kubectl apply -f -
 
-kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.ktpl \
-  -d NAME=kubetpl-example-nginx -d MESSAGE="hello $(whoami)" | 
+# you can also render remote template(s)
+$ kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.kubetpl \
+  -s NAME=kubetpl-example-nginx -s MESSAGE="hello $(whoami)" | 
   kubectl apply -f -
 # same as
-printf "NAME=kubetpl-example-nginx\nMESSAGE=hello $(whoami)" > default.env
-kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.ktpl -c default.env | 
+$ printf "NAME=kubetpl-example-nginx\nMESSAGE=hello $(whoami)" > default.env
+$ kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.kubetpl -i default.env | 
   kubectl apply -f -
-  
 ```
 
-### Template flavours
+> (for more examples see below)
 
-#### placeholder
+## Template flavours
 
-> aka $variable / ${variable}  
+### placeholder
+
+> aka $VAR / ${VAR}  
+
+This is the type of template where all instances of $VAR / ${VAR} are replaced with corresponding values. If, for some variable, no value
+is given - an error will be raised. 
 
 ##### Example
 
@@ -67,13 +110,13 @@ REPLICAS=1
 ```
 </details>
 <details>
-  <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.ktpl</summary>
+  <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.kubetpl</summary>
 
 ```yaml  
 apiVersion: v1
 kind: Service
 metadata:
-  name: $NAME
+  name: $NAME-service
 spec:
   selector:
     app: $NAME
@@ -101,18 +144,25 @@ spec:
 </details>
 <p><p>
 
-Executing `kubetpl render k8s/svc-and-deploy.yml.ktpl -c k8s/staging.env -d REPLICAS=3` should yield
+`kubetpl render k8s/svc-and-deploy.yml.kubetpl -i k8s/staging.env -s REPLICAS=3` should then yield
+
+<details>
+  <summary>(click to expand)</summary>
 
 ```yaml
-# omitted
+apiVersion: v1
+kind: Service
 metadata:
   name: sample-app-service
 spec:
   selector:
     app: sample-app
-# omitted
+  ports:
+  - protocol: TCP
+    port: 80
 ---
-# omitted
+apiVersion: apps/v1beta1
+kind: Deployment
 metadata:
   name: sample-app-deployment
 spec:
@@ -121,15 +171,32 @@ spec:
     metadata:
       labels:
         app: sample-app
-# omitted
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
 ```
+</details>
+<p><p>
 
-> `--format` is automatically inferred as `placeholder` if filename ends with `.yaml.ktpl` or `.yml.ktpl`. 
+> Template `--type` is automatically inferred as `placeholder` if filename ends with `.yaml.kubetpl` or `.yml.kubetpl`. 
+You can also specify it like this: `kubetpl k8s/svc-and-deploy.yml --type=placeholder ...`.
 
-#### [go-template](https://golang.org/pkg/text/template/)
+### go-template
 
 > All functions provided by [sprig](http://masterminds.github.io/sprig/) are available  
 (with the exception of `env` and `expandenv`).
+
+A good overview of go-template|s can be found [here](https://gohugo.io/templates/introduction/#variables). You might also want to check [official documentation](https://golang.org/pkg/text/template/).
+
+Some of the most commonly used expressions:
+* `{{ .VAR }}` - get the value of `VAR`;
+* `{{ .VAR | quote }}` - quote the value of VAR;   
+* `{{ .VAR | indent 4 }}` - indent value of VAR with 4 spaces;   
+* `{{ .VAR | b64enc }}` - base64-encode value of VAR;   
+* `{{- if .VAR }} ... {{- end }}` - render content between `}}` and `{{` only if .VAR is set.   
 
 ##### Example
 
@@ -144,7 +211,7 @@ REPLICAS: 1
 ```
 </details>
 <details>
-  <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.goktpl</summary>
+  <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.kubetpl-go</summary>
 
 ```yaml  
 apiVersion: v1
@@ -178,18 +245,25 @@ spec:
 </details>
 <p><p>
 
-Executing `kubetpl render k8s/svc-and-deploy.yml.goktpl -c k8s/staging.env.yml -d REPLICAS=3` should yield
+`kubetpl render k8s/svc-and-deploy.yml.kubetpl-go -i k8s/staging.env.yml -s REPLICAS=3` should then yield
+
+<details>
+  <summary>(click to expand)</summary>
 
 ```yaml
-# omitted
+apiVersion: v1
+kind: Service
 metadata:
   name: sample-app-service
 spec:
   selector:
     app: sample-app
-# omitted
+  ports:
+  - protocol: TCP
+    port: 80
 ---
-# omitted
+apiVersion: apps/v1beta1
+kind: Deployment
 metadata:
   name: sample-app-deployment
 spec:
@@ -198,14 +272,24 @@ spec:
     metadata:
       labels:
         app: sample-app
-# omitted
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
 ```
+</details>
+<p><p>
 
-> `--format` is automatically inferred as `go-template` if filename ends with `.yaml.goktpl` or `.yml.goktpl`. 
+> Template `--type` is automatically inferred as `go-template` if filename ends with `.yaml.kubetpl-go` or `.yml.kubetpl-go`. 
+You can also specify it like this: `kubetpl k8s/svc-and-deploy.yml --type=go-template ...`.
 
-#### kind-eq-template
+### template-kind
 
-> aka [kind=Template](https://github.com/fabric8io/kubernetes-model/blob/master/vendor/k8s.io/kubernetes/docs/proposals/templates.md). 
+> aka `kind: Template`. 
+
+Structure of the template is described in [Templates + Parameterization proposal](https://github.com/fabric8io/kubernetes-model/blob/master/vendor/k8s.io/kubernetes/docs/proposals/templates.md).
 
 ##### Example
 
@@ -228,13 +312,11 @@ metadata:
   name: nginx-template
   annotations:
     description: nginx template
-labels:
-  template: nginx-template
 objects:
 - apiVersion: v1
   kind: Service
   metadata:
-    name: $(NAME)
+    name: $(NAME)-service
   spec:
     selector:
       app: $(NAME)
@@ -271,18 +353,25 @@ parameters:
 </details>
 <p><p>
 
-Executing `kubetpl render k8s/svc-and-deploy.yml -c k8s/staging.env.yml -d REPLICAS=3` should yield
+`kubetpl render k8s/svc-and-deploy.yml -i k8s/staging.env.yml -s REPLICAS=3` should then yield
+
+<details>
+  <summary>(click to expand)</summary>
 
 ```yaml
-# omitted
+apiVersion: v1
+kind: Service
 metadata:
   name: sample-app-service
 spec:
   selector:
     app: sample-app
-# omitted
+  ports:
+  - protocol: TCP
+    port: 80
 ---
-# omitted
+apiVersion: apps/v1beta1
+kind: Deployment
 metadata:
   name: sample-app-deployment
 spec:
@@ -291,8 +380,14 @@ spec:
     metadata:
       labels:
         app: sample-app
-# omitted
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
 ```
+</details>
 
 ## Development
 
