@@ -31,6 +31,10 @@ func (t GoTemplate) Render(data map[string]interface{}) ([]byte, error) {
 // https://github.com/kubernetes/helm/blob/dece57e0baa94abdba22c0e3ced0b6ea64a83afd/pkg/engine/engine.go
 func funcMap() template.FuncMap {
 	f := sprig.TxtFuncMap()
+	f["def"] = func (m map[string]interface{}, key string) (interface{}, error) {
+		_, ok := m[key]
+		return ok, nil
+	}
 	delete(f, "env")
 	delete(f, "expandenv")
 	return f

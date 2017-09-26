@@ -196,7 +196,7 @@ Some of the most commonly used expressions:
 * `{{ .VAR | quote }}` - quote the value of VAR;   
 * `{{ .VAR | indent 4 }}` - indent value of VAR with 4 spaces;   
 * `{{ .VAR | b64enc }}` - base64-encode value of VAR;   
-* `{{- if .VAR }} ... {{- end }}` - render content between `}}` and `{{` only if .VAR is set.   
+* `{{- if def . VAR }} ... {{- end }}` - render content between `}}` and `{{` only if .VAR is set.   
 
 ##### Example
 
