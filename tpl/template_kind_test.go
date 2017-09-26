@@ -10,7 +10,7 @@ func init() {
 }
 
 func TestKindTemplateRender(t *testing.T) {
-	actual, err := Must(NewKindTemplate(
+	actual, err := Must(NewTemplateKindTemplate(
 		[]byte(`kind: Template
 apiVersion: v1
 metadata:
@@ -77,7 +77,7 @@ spec:
 }
 
 func TestKindTemplateRenderIncomplete(t *testing.T) {
-	_, err := Must(NewKindTemplate(
+	_, err := Must(NewTemplateKindTemplate(
 		[]byte(`kind: Template
 apiVersion: v1
 metadata:
@@ -95,7 +95,7 @@ parameters:
 	)).Render(map[string]interface{}{
 		"NOT_USED": "value",
 	})
-	if err == nil || err.Error() != `"NAME" is missing` {
+	if err == nil || err.Error() != `"NAME" isn't set` {
 		t.Fatal()
 	}
 }

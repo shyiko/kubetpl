@@ -10,7 +10,7 @@ func init() {
 }
 
 func TestGoTemplateRender(t *testing.T) {
-	actual, err := GoTemplate{
+	actual, err := Must(NewGoTemplate(
 		[]byte(`apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -19,8 +19,8 @@ metadata:
     replicas-as-string: {{ .REPLICAS | quote }}
 spec:
   replicas: {{ .REPLICAS }}
-`),
-	}.Render(map[string]interface{}{
+`), "template"),
+	).Render(map[string]interface{}{
 		"NAME":     "app",
 		"NOT_USED": "value",
 		"REPLICAS": 1,
@@ -43,13 +43,13 @@ spec:
 }
 
 func TestGoTemplateRenderIncomplete(t *testing.T) {
-	_, err := GoTemplate{
+	_, err := Must(NewGoTemplate(
 		[]byte(`apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: {{ .NAME }}-deployment
-`),
-	}.Render(map[string]interface{}{
+`), "template"),
+	).Render(map[string]interface{}{
 		"NOT_USED": "value",
 	})
 	if err == nil {

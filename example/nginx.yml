@@ -40,13 +40,13 @@ parameters:
 - name: NAME
   description: Application name
   required: true
-  parameterType: string
+  type: string
 - name: REPLICAS
   description: Number of replicas
   value: 1
   required: true
-  parameterType: int
+  type: int
 - name: MESSAGE
   description: Message to display
   required: true
-  parameterType: string
+  type: string

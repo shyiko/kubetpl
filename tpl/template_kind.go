@@ -2,41 +2,94 @@ package tpl
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	yamlext "github.com/shyiko/kubetpl/yml"
 	"gopkg.in/yaml.v2"
 	"runtime"
 	"strconv"
 	"strings"
+	"encoding/base64"
+	"errors"
 )
 
-type KindTemplate struct {
-	Kind         string
-	Objects      []map[interface{}]interface{}
-	Parameters   []KindTemplateParameter
-	ObjectLabels map[string]string
+type mixedContentTemplate struct {
+	doc []interface{}
 }
 
-type KindTemplateParameter struct {
+type TemplateKindTemplate struct {
+	Kind         string
+	Objects      []map[interface{}]interface{}
+	Parameters   []TemplateKindTemplateParameter
+	ObjectLabels map[string]string // todo: not implemented
+}
+
+type TemplateKindTemplateParameter struct {
 	Name        string
 	DisplayName string
 	Description string
 	Value       interface{}
 	Required    bool
-	Type        string // string, int, bool or base64
+	Type        string // string, int, bool or base64 (optional just like rest of the fields (except name))
 }
 
-func NewKindTemplate(template []byte) (Template, error) {
-	var tpl KindTemplate
-	yaml.Unmarshal(template, &tpl)
-	if tpl.Kind != "Template" {
-		return nil, errors.New("Invalid template (kind != Template)")
+func NewTemplateKindTemplate(template []byte) (Template, error) {
+	var doc []interface{}
+	if err := yamlext.UnmarshalSlice(template, func(in []byte) error {
+		var tpl TemplateKindTemplate
+		err := yaml.Unmarshal(in, &tpl)
+		if err != nil {
+			return err
+		}
+		if tpl.Kind == "Template" {
+			doc = append(doc, tpl)
+			return nil
+		}
+		// otherwise assume that it's a regular resource
+		m := make(map[string]interface{})
+		if err := yaml.Unmarshal(in, &m); err != nil {
+			return err
+		}
+		if len(m) == 0 {
+			// empty doc
+			return nil
+		}
+		if m["kind"] == nil || m["kind"] == "" {
+			return errors.New("Resource \"kind\" is missing")
+		}
+		doc = append(doc, m)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	return tpl, nil
+	return mixedContentTemplate{doc}, nil
 }
 
-func (t KindTemplate) Render(param map[string]interface{}) (res []byte, err error) {
+func (t mixedContentTemplate) Render(data map[string]interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	for _, doc := range t.doc {
+		var res []byte
+		var err error
+		switch d := doc.(type) {
+		case TemplateKindTemplate:
+			res, err = d.Render(data)
+			if err != nil {
+				return nil, err
+			}
+			buf.Write(res)
+		default:
+			res, err = yaml.Marshal(d)
+			if err != nil {
+				return nil, err
+			}
+			buf.Write([]byte("---\n"))
+			buf.Write(res)
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+func (t TemplateKindTemplate) Render(data map[string]interface{}) (res []byte, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -45,19 +98,13 @@ func (t KindTemplate) Render(param map[string]interface{}) (res []byte, err erro
 			err = r.(error)
 		}
 	}()
-	data, err := t.data(param)
+	data, err = t.data(data)
 	if err != nil {
 		return nil, err
 	}
 	log.Debugf("data = %v", data)
 	var buf bytes.Buffer
 	for _, obj := range t.Objects {
-		/*
-			m, ok := obj.(map[string]interface{})
-			if !ok {
-				return nil, fmt.Errorf("Expected an object, instead got %s (object #%v)", reflect.TypeOf(obj).String(), i)
-			}
-		*/
 		uobj := traverse(
 			obj,
 			func(value string) interface{} {
@@ -70,12 +117,14 @@ func (t KindTemplate) Render(param map[string]interface{}) (res []byte, err erro
 					}
 					v, ok := data[name]
 					if !ok {
-						panic(fmt.Errorf("\"%s\" is not defined", name))
+						panic(fmt.Errorf("\"%s\" isn't set", name))
 					}
 					if v == nil {
 						null = true
 					}
-					// fixme: make sure v is primitive
+					if !isBasicYAMLType(value) {
+						panic(fmt.Errorf("\"%s\" must be either a string, number or a boolean", name))
+					}
 					return fmt.Sprintf("%v", v)
 				})
 				if null {
@@ -112,12 +161,12 @@ func (t KindTemplate) Render(param map[string]interface{}) (res []byte, err erro
 	return buf.Bytes(), nil
 }
 
-func (t KindTemplate) data(param map[string]interface{}) (map[string]interface{}, error) {
+func (t TemplateKindTemplate) data(param map[string]interface{}) (map[string]interface{}, error) {
 	m := make(map[string]interface{}, len(param))
 	for _, p := range t.Parameters {
 		if param[p.Name] == nil {
 			if p.Required && p.Value == nil {
-				return nil, fmt.Errorf("\"%s\" is missing", p.Name)
+				return nil, fmt.Errorf("\"%s\" isn't set", p.Name)
 			}
 			m[p.Name] = p.Value
 		}
@@ -125,7 +174,61 @@ func (t KindTemplate) data(param map[string]interface{}) (map[string]interface{}
 	for k, v := range param {
 		m[k] = v
 	}
+	// enforce p.Type
+	for _, p := range t.Parameters {
+		if p.Type == "" {
+			continue // type is optional
+		}
+		switch p.Type {
+		case "string", "base64", "int", "bool":
+			break
+		default:
+			return nil, fmt.Errorf("\"parameterType\" of \"%s\" must be either string, base64, int or bool", p.Name)
+		}
+		v := m[p.Name]
+		if !isBasicYAMLType(v) {
+			return nil, fmt.Errorf("Type of \"%s\" must be \"%s\"", p.Name, p.Type)
+		}
+		switch p.Type {
+		case "base64":
+			if !isBase64EncodedString(v) {
+				return nil, fmt.Errorf("\"%s\" must be a base64-encoded string", p.Name)
+			}
+		case "int":
+			if !isInt(v) {
+				return nil, fmt.Errorf("\"%s\" must be a number", p.Name)
+			}
+		case "bool":
+			if !isBool(v) {
+				return nil, fmt.Errorf("\"%s\" must be a boolean", p.Name)
+			}
+		}
+	}
 	return m, nil
+}
+
+func isBase64EncodedString(v interface{}) bool {
+	_, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%v", v))
+	return err == nil
+}
+
+func isInt(v interface{}) bool {
+	vs := fmt.Sprintf("%v", v)
+	if _, err := strconv.ParseInt(vs, 0, 64); err == nil {
+		return true
+	}
+	if _, err := strconv.ParseFloat(vs, 64); err == nil {
+		return true
+	}
+	return false
+}
+
+func isBool(v interface{}) bool {
+	switch strings.ToLower(fmt.Sprintf("%v", v)) {
+	case "true", "false":
+		return true
+	}
+	return false
 }
 
 func traverse(m map[interface{}]interface{}, cb func(value string) interface{}) map[interface{}]interface{} {

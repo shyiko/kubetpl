@@ -3,38 +3,29 @@ package tpl
 import (
 	"bytes"
 	"github.com/Masterminds/sprig"
-	"github.com/ghodss/yaml"
 	"text/template"
 )
 
 type GoTemplate struct {
-	template []byte
+	content []byte
+	name string
 }
 
-func NewGoTemplate(template []byte) (Template, error) {
-	return GoTemplate{template}, nil
+func NewGoTemplate(template []byte, name string) (Template, error) {
+	return GoTemplate{template, name}, nil
 }
 
-func (t GoTemplate) Render(param map[string]interface{}) (res []byte, err error) {
-	tmpl, err := template.New("template"). // todo: template name
-						Funcs(funcMap()).
-						Option("missingkey=error").
-						Parse(string(t.template))
+func (t GoTemplate) Render(data map[string]interface{}) ([]byte, error) {
+	tmpl, err := template.New(t.name).Funcs(funcMap()).Option("missingkey=error").Parse(string(t.content))
 	if err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, param)
+	err = tmpl.Execute(&buf, data)
 	if err != nil {
 		return nil, err
 	}
-	res = buf.Bytes()
-	// todo: not strictly needed, validation should catch any error
-	m := map[string]interface{}{}
-	if err = yaml.Unmarshal([]byte(buf.String()), &m); err != nil {
-		return
-	}
-	return
+	return buf.Bytes(), nil
 }
 
 // https://github.com/kubernetes/helm/blob/dece57e0baa94abdba22c0e3ced0b6ea64a83afd/pkg/engine/engine.go
