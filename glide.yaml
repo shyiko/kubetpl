@@ -1,12 +1,8 @@
 package: github.com/shyiko/kubetpl
 import:
-- package: github.com/garethr/kubeval
-- package: github.com/ghodss/yaml
-- package: github.com/hashicorp/go-multierror
 - package: github.com/Masterminds/sprig
 - package: github.com/Sirupsen/logrus
 - package: github.com/spf13/cobra
 - package: github.com/spf13/pflag
-- package: github.com/spf13/viper
-- package: github.com/xeipuuv/gojsonschema
 - package: gopkg.in/ini.v1
+- package: gopkg.in/yaml.v2
