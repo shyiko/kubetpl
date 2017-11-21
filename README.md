@@ -3,12 +3,14 @@
 Simple yet flexible client-side templating for Kubernetes.
 
 Features:
-- **Template flavour of your choice**.  
+- **Template flavor of your choice**.  
   Start simple ([$VAR](#placeholder)). [Step up your game with go-template|s](#go-template) when (and if!) needed). 
    
   [placeholder](#placeholder) (aka `$VAR` / `${VAR}`) | [go-template](#go-template) (enriched with [sprig](http://masterminds.github.io/sprig/)) | [template-kind](#template-kind) (aka `kind: Template`) are available out-of-box.  
   We also accept PRs for other formats. 
-- Support for **\*.env** (`<VAR>=<VAL>`) and **YAML** data (config) files.   
+- Support for **\*.env** (`<VAR>=<VAL>`) and **YAML** data (config) files.
+- Fail-fast defaults   
+(all variables are considered to be required and must be given a value (unless explicitly marked optional)).    
 
 ## Installation
 
@@ -88,7 +90,7 @@ $ kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.kube
 
 > (for more examples see below)
 
-## Template flavours
+## Template flavors
 
 ### placeholder
 
@@ -391,7 +393,7 @@ spec:
 
 ## Development
 
-> PREREQUISITE: [go1.8](https://golang.org/dl/).
+> PREREQUISITE: [go1.8+](https://golang.org/dl/).
 
 ```sh
 git clone https://github.com/shyiko/kubetpl $GOPATH/src/github.com/shyiko/kubetpl 
