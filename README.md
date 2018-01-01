@@ -2,7 +2,7 @@
 
 Simple yet flexible client-side templating for Kubernetes.
 
-[![asciicast](https://asciinema.org/a/nvKMgj9FX2YPh9WV8xfvjvGZ2.png)](https://asciinema.org/a/nvKMgj9FX2YPh9WV8xfvjvGZ2)  
+[![asciicast](https://asciinema.org/a/h2r3K7uOMHS9CyyswrA8kVN2N.png)](https://asciinema.org/a/h2r3K7uOMHS9CyyswrA8kVN2N)  
 
 Features:
 - **Template flavor of your choice**.  
