@@ -2,6 +2,8 @@
 
 Simple yet flexible client-side templating for Kubernetes.
 
+[![asciicast](https://asciinema.org/a/nvKMgj9FX2YPh9WV8xfvjvGZ2.png)](https://asciinema.org/a/nvKMgj9FX2YPh9WV8xfvjvGZ2)  
+
 Features:
 - **Template flavor of your choice**.  
   Start simple ([$VAR](#placeholder)). [Step up your game with go-template|s](#go-template) when (and if!) needed). 
@@ -19,19 +21,19 @@ Features:
 ```sh
 curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.1.0/kubetpl-0.1.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
-  )-amd64 > kubetpl && chmod a+x kubetpl
+  )-amd64 -o kubetpl && chmod a+x kubetpl && sudo mv kubetpl /usr/local/bin/
     
 # verify PGP signature (optional but RECOMMENDED)
 curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.1.0/kubetpl-0.1.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
-  )-amd64.asc > kubetpl.asc
-curl https://keybase.io/shyiko/pgp_keys.asc | gpg --import
-gpg --verify kubetpl.asc
+  )-amd64.asc -o kubetpl.asc
+curl -sS https://keybase.io/shyiko/pgp_keys.asc | gpg --import
+gpg --verify kubetpl.asc /usr/local/bin/kubetpl
 ```  
 
 #### Windows
 
-Download binary from the "[release(s)](https://github.com/shyiko/kubetpl/releases)" page.
+Download binary from the [Releases](https://github.com/shyiko/kubetpl/releases) page.
 
 ## Usage
 
