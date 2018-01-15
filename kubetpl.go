@@ -9,11 +9,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/ini.v1"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
-	"gopkg.in/yaml.v2"
 )
 
 var version string
@@ -129,7 +129,7 @@ func main() {
 			"  kubetpl render svc-and-deploy.yml -T -i staging.yml -s KEY=VALUE",
 	}
 	renderCmd.Flags().StringVarP(&format, "type", "t", "",
-		"Template format\n\n    \"placeholder\" (*.{yml,yaml,json}.kubetpl), " +
+		"Template format\n\n    \"placeholder\" (*.{yml,yaml,json}.kubetpl), "+
 			"\n    \"go-template\" (*.{yml,yaml,json}.kubetpl-go), \n    \"template-kind\" (*.{yml,yaml,json})")
 	renderCmd.Flags().BoolP("use-shorthand-G", "G", false, "")
 	renderCmd.Flags().BoolP("use-shorthand-T", "T", false, "")
@@ -212,9 +212,9 @@ func newTemplate(file string, format string) (tpl.Template, error) {
 	if format != "" {
 		return nil, fmt.Errorf("Unknown template type \"%s\"", format)
 	}
-	return nil, fmt.Errorf("Unable to infer type of \"%s\".\n" +
-		"You either need to specify format explicitly with --type=<value> or " +
-		"change the extension of the file to reflect the type.\n" +
+	return nil, fmt.Errorf("Unable to infer type of \"%s\".\n"+
+		"You either need to specify format explicitly with --type=<value> or "+
+		"change the extension of the file to reflect the type.\n"+
 		"See `kubetpl render --help` for more", file)
 }
 

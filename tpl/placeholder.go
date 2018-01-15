@@ -2,8 +2,8 @@ package tpl
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	yamlext "github.com/shyiko/kubetpl/yml"
+	"gopkg.in/yaml.v2"
 	"runtime"
 )
 
@@ -70,11 +70,10 @@ func expandWithLineColumnInfo(s string, mapping func(string, int, int) string) s
 		if s[j] == '\n' {
 			l++
 			n = j + 1
-		} else
-		if s[j] == '$' && j+1 < len(s) {
+		} else if s[j] == '$' && j+1 < len(s) {
 			buf = append(buf, s[i:j]...)
 			name, w := getShellName(s[j+1:])
-			buf = append(buf, mapping(name, l + 1, j - n + 1)...)
+			buf = append(buf, mapping(name, l+1, j-n+1)...)
 			j += w
 			i = j + 1
 		}

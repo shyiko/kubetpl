@@ -2,6 +2,8 @@ package tpl
 
 import (
 	"bytes"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	yamlext "github.com/shyiko/kubetpl/yml"
@@ -9,8 +11,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"encoding/base64"
-	"errors"
 )
 
 type mixedContentTemplate struct {
