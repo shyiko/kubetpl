@@ -55,4 +55,8 @@ metadata:
 	if err == nil {
 		t.Fatal()
 	}
+	expected := `4:9: "NAME" isn't set`
+	if err.Error() != expected {
+		t.Fatalf("actual: \n%s != expected: \n%s", err.Error(), expected)
+	}
 }
