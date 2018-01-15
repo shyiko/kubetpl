@@ -101,6 +101,8 @@ $ kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.kube
 This is the type of template where all instances of $VAR / ${VAR} are replaced with corresponding values. If, for some variable, no value
 is given - an error will be raised. 
 
+> Use `$$` when you need a literal dollar sign (`$$v` is interpreted as `$v` string and not `'$' + <value_of_v>`). 
+
 ##### Example
 
 Let's say we have the following (click to expand):
