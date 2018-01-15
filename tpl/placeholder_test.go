@@ -17,6 +17,7 @@ metadata:
   name: $NAME-deployment
   annotations:
     replicas-as-string: "$REPLICAS"
+    key: "${NAME}$$VALUE" # $${...} and $$$$ test
 spec:
   replicas: $REPLICAS
 `),
@@ -34,6 +35,7 @@ metadata:
   name: app-deployment
   annotations:
     replicas-as-string: "1"
+    key: "app$VALUE" # ${...} and $$ test
 spec:
   replicas: 1
 `

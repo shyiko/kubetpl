@@ -48,6 +48,9 @@ func envsubst(value string, env map[string]interface{}) (res string, err error) 
 		}
 	}()
 	res = expandWithLineColumnInfo(value, func(key string, line int, col int) string {
+		if key == "$" {
+			return "$"
+		}
 		value, ok := env[key]
 		if !ok || value == nil {
 			panic(fmt.Errorf("%d:%d: \"%s\" isn't set", line, col, key))
