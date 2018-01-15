@@ -295,7 +295,7 @@ You can also specify it like this: `kubetpl k8s/svc-and-deploy.yml --type=go-tem
 
 > aka `kind: Template`. 
 
-Structure of the template is described in [Templates + Parameterization proposal](https://github.com/fabric8io/kubernetes-model/blob/master/vendor/k8s.io/kubernetes/docs/proposals/templates.md).
+Structure of the template is described in [Templates + Parameterization proposal](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/apps/OBSOLETE_templates.md).
 
 ##### Example
 
