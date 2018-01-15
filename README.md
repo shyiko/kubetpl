@@ -19,12 +19,12 @@ Features:
 #### macOS / Linux
 
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.1.0/kubetpl-0.1.0-$(
+curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.2.0/kubetpl-0.2.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64 -o kubetpl && chmod a+x kubetpl && sudo mv kubetpl /usr/local/bin/
     
 # verify PGP signature (optional but RECOMMENDED)
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.1.0/kubetpl-0.1.0-$(
+curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.2.0/kubetpl-0.2.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64.asc -o kubetpl.asc
 curl -sS https://keybase.io/shyiko/pgp_keys.asc | gpg --import
