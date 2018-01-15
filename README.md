@@ -1,4 +1,4 @@
-# kubetpl
+# kubetpl ![Latest Version](https://img.shields.io/badge/latest-0.2.0-blue.svg) [![Build Status](https://travis-ci.org/shyiko/kubetpl.svg?branch=master)](https://travis-ci.org/shyiko/kubetpl)
 
 Simple yet flexible client-side templating for Kubernetes.
 
