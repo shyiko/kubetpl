@@ -18,6 +18,12 @@ Features:
 
 #### macOS / Linux
 
+For macOS make sure that you have that you have GPG (GNU Privacy Guard) installed. 
+```sh
+# making sure that GPG (GNU Privacy Guard) is installed on macOS
+brew install gnupg
+```
+
 ```sh
 curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.2.0/kubetpl-0.2.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
