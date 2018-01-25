@@ -31,7 +31,7 @@ curl -sS https://keybase.io/shyiko/pgp_keys.asc | gpg --import
 gpg --verify kubetpl.asc /usr/local/bin/kubetpl
 ```  
 
-> macOS: if you want to verify PGP signature but don't have `gpg` installed - `brew install gnupg`
+> macOS: `gpg` can be installed with `brew install gnupg`
 
 #### Windows
 
