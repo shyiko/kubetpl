@@ -22,8 +22,10 @@ Features:
 curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.2.0/kubetpl-0.2.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64 -o kubetpl && chmod a+x kubetpl && sudo mv kubetpl /usr/local/bin/
+```
     
-# verify PGP signature (optional but RECOMMENDED)
+Verify PGP signature (optional but recommended):    
+```sh
 curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.2.0/kubetpl-0.2.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64.asc -o kubetpl.asc
@@ -35,7 +37,7 @@ gpg --verify kubetpl.asc /usr/local/bin/kubetpl
 
 #### Windows
 
-Download binary from the [Releases](https://github.com/shyiko/kubetpl/releases) page.
+Download executable from the [Releases](https://github.com/shyiko/kubetpl/releases) page.
 
 ## Usage
 
@@ -399,7 +401,7 @@ spec:
 
 ## Development
 
-> PREREQUISITE: [go1.8+](https://golang.org/dl/).
+> PREREQUISITE: [go1.9+](https://golang.org/dl/).
 
 ```sh
 git clone https://github.com/shyiko/kubetpl $GOPATH/src/github.com/shyiko/kubetpl 
@@ -412,4 +414,4 @@ go run kubetpl.go
 ## Legal
 
 All code, unless specified otherwise, is licensed under the [MIT](https://opensource.org/licenses/MIT) license.  
-Copyright (c) 2017 Stanley Shyiko.
+Copyright (c) 2018 Stanley Shyiko.
