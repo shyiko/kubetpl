@@ -187,7 +187,7 @@ func render(templateFiles []string, config map[string]interface{}, format string
 		}); err != nil {
 			return "", err
 		}
-		output = append(output, string(out))
+		output = append(output, buf.String())
 	}
 	return strings.Join(output, "---\n"), nil
 }
