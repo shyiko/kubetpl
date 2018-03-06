@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -36,8 +37,9 @@ func (f *simpleFormatter) Format(entry *log.Entry) ([]byte, error) {
 }
 
 func main() {
-	var format string
+	var format, chroot string
 	var configFiles, configKeyValuePairs []string
+	var chrootTemplateDir bool
 	rootCmd := &cobra.Command{
 		Use:  "kubetpl",
 		Long: "Kubernetes templates made easy (https://github.com/shyiko/kubetpl).",
@@ -102,7 +104,7 @@ func main() {
 					" (please use `--format=shell` or `# kubetpl:type:shell` directive instead)")
 				explicitFormat = "sh"
 			}
-			out, err := render(args, config, explicitFormat)
+			out, err := render(args, config, explicitFormat, chroot, chrootTemplateDir)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -145,6 +147,10 @@ func main() {
 	renderCmd.Flags().StringArrayVarP(&configFiles, "input", "i", nil, "Config file(s) (*.{env,yml,yaml,json})")
 	renderCmd.Flags().StringArrayVarP(&configKeyValuePairs, "set", "s", []string{},
 		"<key>=<value> pair(s) (takes precedence over config file(s))")
+	renderCmd.Flags().StringVarP(&chroot, "chroot", "c", "",
+		"\"kubetpl/data-from-file\" root directory (access to anything outside of it will be denied)")
+	renderCmd.Flags().BoolVarP(&chrootTemplateDir, "chroot-dirname", "C", false,
+		"--chroot=<directory containing template> shorthand")
 	renderCmd.Flags().StringP("output", "o", "", "Redirect output to a file")
 	rootCmd.AddCommand(renderCmd)
 	walk(rootCmd, func(cmd *cobra.Command) {
@@ -165,7 +171,14 @@ func walk(cmd *cobra.Command, cb func(*cobra.Command)) {
 	}
 }
 
-func render(templateFiles []string, config map[string]interface{}, flavor string) ([]byte, error) {
+func render(templateFiles []string, config map[string]interface{}, flavor string, chroot string, dirnameChroot bool) ([]byte, error) {
+	if chroot != "" {
+		var err error
+		chroot, err = filepath.Abs(chroot)
+		if err != nil {
+			return nil, err
+		}
+	}
 	var objs []map[interface{}]interface{}
 	for _, templateFile := range templateFiles {
 		t, err := newTemplate(templateFile, flavor)
@@ -176,9 +189,38 @@ func render(templateFiles []string, config map[string]interface{}, flavor string
 		if err != nil {
 			return nil, err
 		}
+		baseDir, err := dirnameAbs(templateFile)
+		if err != nil {
+			return nil, err
+		}
+		templateChroot := chroot
+		if chroot == "" && dirnameChroot {
+			templateChroot = baseDir
+		}
+		if !strings.HasSuffix(templateChroot, string(filepath.Separator)) {
+			templateChroot += string(filepath.Separator)
+		}
 		for _, chunk := range yamlext.Chunk(out) {
 			obj := make(map[interface{}]interface{})
 			if err = yaml.Unmarshal(chunk, &obj); err != nil {
+				return nil, err
+			}
+			if _, err := tpl.ReplaceDataFromFileInPlace(obj, func(file string) (string, []byte, error) {
+				if !filepath.IsAbs(file) {
+					file = filepath.Join(baseDir, file)
+				}
+				file, err := filepath.Abs(file)
+				if err != nil {
+					return "", nil, err
+				}
+				if templateChroot == "" || !strings.HasPrefix(file, templateChroot) {
+					return "", nil, fmt.Errorf("%s is denied access to %s"+
+						" (use -c/--chroot=<root dir> or -C/--chroot-dirname (--chroot=<directory containing template> shorthand) to allow)",
+						templateFile, file)
+				}
+				data, err := ioutil.ReadFile(file)
+				return filepath.Base(file), data, err
+			}); err != nil {
 				return nil, err
 			}
 			objs = append(objs, obj)
@@ -194,6 +236,16 @@ func render(templateFiles []string, config map[string]interface{}, flavor string
 		buf.Write(o)
 	}
 	return buf.Bytes(), nil
+}
+
+func dirnameAbs(path string) (string, error) {
+	if path == "-" {
+		return os.Getwd()
+	}
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return "", fmt.Errorf("\"kubetpl/data-from-file\" + https?:// is not supported at the moment")
+	}
+	return filepath.Abs(filepath.Dir(path))
 }
 
 func newTemplate(file string, flavor string) (tpl.Template, error) {
@@ -247,7 +299,7 @@ func newTemplate(file string, flavor string) (tpl.Template, error) {
 				break
 			}
 		}
-		return tpl.NewTemplateKindTemplate(content)
+		return tpl.NewTemplateKindTemplate(content) // change to simple pass-through in 1.0.0
 	}
 }
 

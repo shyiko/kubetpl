@@ -1,0 +1,37 @@
+# kubetpl:format:shell
+
+apiVersion: v1
+data:
+  robots.txt: |
+    User-agent: *
+    Disallow: /
+kind: ConfigMap
+kubetpl/data-from-file:
+- index.html
+- 404.html=index.html
+metadata:
+  name: $NAME
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: $NAME
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: $NAME
+    spec:
+      containers:
+      - image: nginx:1.7.9
+        name: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: $NAME-volume
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - configMap:
+          name: $NAME
+        name: $NAME-volume
