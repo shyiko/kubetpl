@@ -5,7 +5,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/shyiko/kubetpl/tpl"
-	yamlext "github.com/shyiko/kubetpl/yml"
+	yamlext "github.com/shyiko/kubetpl/yaml"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/ini.v1"
@@ -55,7 +55,7 @@ func main() {
 		},
 	}
 	renderCmd := &cobra.Command{
-		Use:     "render [file]",
+		Use:     "render [file...]",
 		Aliases: []string{"r"},
 		Short:   "Render template(s)",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,12 +73,16 @@ func main() {
 				}
 				config[split[0]] = split[1]
 			}
-			formatSlice := []string{}
+			var formatSlice []string
 			if format != "" {
 				formatSlice = append(formatSlice, format)
 			}
+			if pre030format, _ := cmd.Flags().GetString("type"); pre030format != "" {
+				formatSlice = append(formatSlice, pre030format)
+			}
+			// use-shorthand-* flags below are deprecated
 			if set, _ := cmd.Flags().GetBool("use-shorthand-P"); set {
-				formatSlice = append(formatSlice, "placeholder")
+				formatSlice = append(formatSlice, "shell")
 			}
 			if set, _ := cmd.Flags().GetBool("use-shorthand-G"); set {
 				formatSlice = append(formatSlice, "go-template")
@@ -87,58 +91,60 @@ func main() {
 				formatSlice = append(formatSlice, "template-kind")
 			}
 			if len(formatSlice) > 1 {
-				log.Fatalf("--type/-P/-G/-T cannot be used simultaneously")
+				log.Fatalf("-t/--type/-P/-G/-T/--format cannot be used simultaneously")
 			}
 			var explicitFormat string
 			if len(formatSlice) == 1 {
 				explicitFormat = formatSlice[0]
+			}
+			if explicitFormat == "placeholder" {
+				log.Warnf("--type=placeholder was deprecated" +
+					" (please use `--format=shell` or `# kubetpl:type:shell` directive instead)")
+				explicitFormat = "sh"
 			}
 			out, err := render(args, config, explicitFormat)
 			if err != nil {
 				log.Fatal(err)
 			}
 			if output, _ := cmd.Flags().GetString("output"); output != "" && output != "-" {
-				err := ioutil.WriteFile(output, []byte(out), 0600)
+				err := ioutil.WriteFile(output, out, 0600)
 				if err != nil {
 					log.Fatal(err)
 				}
 			} else {
-				fmt.Println(out)
+				os.Stdout.Write(out)
+				fmt.Println()
 			}
 			return nil
 		},
-		Example: "  # render \"placeholder\" (aka $VAR / ${VAR}) type of template\n" +
-			"  kubetpl render svc-and-deploy.yml.kubetpl -i staging.env -s KEY=VALUE\n" +
-			"  # same as above\n" +
-			"  kubetpl render svc-and-deploy.yml --type=placeholder -i staging.env -s KEY=VALUE\n" +
-			"  # -P is a shorthand for --type=placeholder\n" +
-			"  kubetpl render svc-and-deploy.yml -P -i staging.env -s KEY=VALUE\n" +
-			"\n" +
-			"  # render \"go-template\" type of template\n" +
-			"  kubetpl render svc-and-deploy.yml.kubetpl-go -i staging.yml -s KEY=VALUE\n" +
-			"  # same as above\n" +
-			"  kubetpl render svc-and-deploy.yml --type=go-template -i staging.yml -s KEY=VALUE\n" +
-			"  # -G is a shorthand for --type=go-template\n" +
-			"  kubetpl render svc-and-deploy.yml -G -i staging.yml -s KEY=VALUE\n" +
-			"\n" +
-			"  # render \"template-kind\" (aka \"kind: Template\") type of template\n" +
-			"  kubetpl render svc-and-deploy.yml -i staging.yml -s KEY=VALUE\n" +
-			"  # same as above\n" +
-			"  kubetpl render svc-and-deploy.yml --type=template-kind -i staging.yml -s KEY=VALUE\n" +
-			"  # -T is a shorthand for --type=template-kind\n" +
-			"  kubetpl render svc-and-deploy.yml -T -i staging.yml -s KEY=VALUE",
+		Example: "  kubetpl render template.yml -i staging.env -s KEY=VALUE --format=shell\n\n" +
+			"  # if template contains \"# kubetpl:format:shell\" --format can be omitted (recommended)\n" +
+			"  kubetpl render template.yml -i staging.env -s KEY=VALUE",
 	}
-	renderCmd.Flags().StringVarP(&format, "type", "t", "",
-		"Template format\n\n    \"placeholder\" (*.{yml,yaml,json}.kubetpl), "+
-			"\n    \"go-template\" (*.{yml,yaml,json}.kubetpl-go), \n    \"template-kind\" (*.{yml,yaml,json})")
-	renderCmd.Flags().BoolP("use-shorthand-G", "G", false, "")
-	renderCmd.Flags().BoolP("use-shorthand-T", "T", false, "")
-	renderCmd.Flags().BoolP("use-shorthand-P", "P", false, "")
-	renderCmd.Flags().MarkHidden("use-shorthand-G")
-	renderCmd.Flags().MarkHidden("use-shorthand-T")
-	renderCmd.Flags().MarkHidden("use-shorthand-P")
-	renderCmd.Flags().StringArrayVarP(&configFiles, "input", "i", nil, "Config (data) file(s) (*.{env,yml,yaml,json})")
-	renderCmd.Flags().StringArrayVarP(&configKeyValuePairs, "set", "s", []string{}, "<key>=<value> pair (takes precedence over data (config) file(s))")
+	renderCmd.Flags().StringP("type", "t", "", "Template flavor (shell|go-template|template-kind)")
+	renderCmd.Flags().MarkDeprecated("type",
+		"use --format=<shell|go-template|template-kind> instead\n"+
+			"(if you wish to avoid typing --format=... - "+
+			"add \"# kubetpl:format:<shell, go-template or template-kind>\" comment (preferably at the top of the template))")
+	renderCmd.Flags().StringVar(&format, "format", "", "Template flavor (shell|go-template|template-kind)")
+	renderCmd.Flags().BoolP("shorthand-P", "P", false, "")
+	renderCmd.Flags().BoolP("shorthand-G", "G", false, "")
+	renderCmd.Flags().BoolP("shorthand-T", "T", false, "")
+	renderCmd.Flags().MarkDeprecated("shorthand-P",
+		"use --format=shell instead\n"+
+			"(if you wish to avoid typing --format=... - "+
+			"add \"# kubetpl:format:shell\" comment (preferably at the top of the template))")
+	renderCmd.Flags().MarkDeprecated("shorthand-G",
+		"use --format=go-template instead\n"+
+			"(if you wish to avoid typing --format=... - "+
+			"add \"# kubetpl:format:go-template\" comment (preferably at the top of the template))")
+	renderCmd.Flags().MarkDeprecated("shorthand-T",
+		"use --format=template-kind instead\n"+
+			"(if you wish to avoid typing --format=... - "+
+			"add \"# kubetpl:format:template-kind\" comment (preferably at the top of the template))")
+	renderCmd.Flags().StringArrayVarP(&configFiles, "input", "i", nil, "Config file(s) (*.{env,yml,yaml,json})")
+	renderCmd.Flags().StringArrayVarP(&configKeyValuePairs, "set", "s", []string{},
+		"<key>=<value> pair(s) (takes precedence over config file(s))")
 	renderCmd.Flags().StringP("output", "o", "", "Redirect output to a file")
 	rootCmd.AddCommand(renderCmd)
 	walk(rootCmd, func(cmd *cobra.Command) {
@@ -159,63 +165,90 @@ func walk(cmd *cobra.Command, cb func(*cobra.Command)) {
 	}
 }
 
-func render(templateFiles []string, config map[string]interface{}, format string) (string, error) {
-	var output []string
+func render(templateFiles []string, config map[string]interface{}, flavor string) ([]byte, error) {
+	var objs []map[interface{}]interface{}
 	for _, templateFile := range templateFiles {
-		tmpl, err := newTemplate(templateFile, format)
+		t, err := newTemplate(templateFile, flavor)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		out, err := tmpl.Render(config)
+		out, err := t.Render(config)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		// normalizing output between template engines
-		var buf bytes.Buffer
-		if err := yamlext.UnmarshalSlice(out, func(in []byte) error {
-			m := make(map[string]interface{})
-			if err = yaml.Unmarshal(in, &m); err != nil {
-				return err
+		for _, chunk := range yamlext.Chunk(out) {
+			obj := make(map[interface{}]interface{})
+			if err = yaml.Unmarshal(chunk, &obj); err != nil {
+				return nil, err
 			}
-			o, err := yaml.Marshal(m)
-			if err != nil {
-				return err
-			}
-			buf.Write([]byte("---\n"))
-			buf.Write(o)
-			return nil
-		}); err != nil {
-			return "", err
+			objs = append(objs, obj)
 		}
-		output = append(output, buf.String())
 	}
-	return strings.Join(output, "---\n"), nil
+	var buf bytes.Buffer
+	for _, obj := range objs {
+		o, err := yaml.Marshal(obj)
+		if err != nil {
+			return nil, err
+		}
+		buf.Write([]byte("---\n"))
+		buf.Write(o)
+	}
+	return buf.Bytes(), nil
 }
 
-func newTemplate(file string, format string) (tpl.Template, error) {
+func newTemplate(file string, flavor string) (tpl.Template, error) {
 	content, err := readFile(file)
 	if err != nil {
 		return nil, err
 	}
-	if hasExtensionAny(file, ".yml.kubetpl", ".yaml.kubetpl", ".json.kubetpl-go") ||
-		format == "placeholder" {
-		return tpl.NewPlaceholderTemplate(content)
+	directives, err := parseDirectives(content)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %s", file, err.Error())
 	}
-	if hasExtensionAny(file, ".yml.kubetpl-go", ".yaml.kubetpl-go", ".json.kubetpl-go") ||
-		format == "go-template" {
+	for _, d := range directives {
+		if d.Key == "format" {
+			flavor = d.Value
+		}
+	}
+	if flavor == "" {
+		if hasExtensionAny(file, ".yml.kubetpl", ".yaml.kubetpl", ".json.kubetpl-go") {
+			log.Warnf("*.{yml,yaml,json}.kubetpl as an indicator for \"shell\" flavor has been deprecated" +
+				" (please use `--format=shell` or `# kubetpl:type:shell` directive instead)")
+			flavor = "shell"
+		}
+		if hasExtensionAny(file, ".yml.kubetpl-go", ".yaml.kubetpl-go", ".json.kubetpl-go") {
+			log.Warnf("*.{yml,yaml,json}.kubetpl-go as an indicator for \"go-template\" flavor has been deprecated" +
+				" (please use `--format=go-template` or `# kubetpl:format:go-template` directive instead)")
+			flavor = "go-template"
+		}
+	}
+	switch flavor {
+	case "sh", "shell":
+		return tpl.NewShellTemplate(content)
+	case "go", "go-template":
 		return tpl.NewGoTemplate(content, file)
-	}
-	if hasExtensionAny(file, ".yml", ".yaml", ".json") ||
-		format == "template-kind" {
+	case "template-kind":
+		return tpl.NewTemplateKindTemplate(content)
+	default:
+		if flavor != "" {
+			return nil, fmt.Errorf("%s: unknown template type \"%s\" "+
+				"(expected \"shell\", \"go-template\" or \"template-kind\")", file, flavor)
+		}
+		// warn if "kind: Template" is present
+		for _, chunk := range yamlext.Chunk(content) {
+			m := make(map[interface{}]interface{})
+			if err = yaml.Unmarshal(chunk, &m); err != nil {
+				return nil, fmt.Errorf("%s does not appear to be a valid YAML.\n"+
+					"Did you forget to specify `--format=<shell|go-template|template-kind>` / add \"# kubetpl:format:<shell|go-template|template-kind>\"?", file)
+			}
+			if m["kind"] == "Template" {
+				log.Warnf("%s appears to contain \"kind: Template\"" +
+					" (please either use `--format=go-template` or add \"# kubetpl:format:go-template\" to the template)")
+				break
+			}
+		}
 		return tpl.NewTemplateKindTemplate(content)
 	}
-	if format != "" {
-		return nil, fmt.Errorf("Unknown template type \"%s\"", format)
-	}
-	return nil, fmt.Errorf("Unable to infer type of \"%s\".\n"+
-		"You either need to specify format explicitly with --type=<value> or "+
-		"change the extension of the file to reflect the type.\n"+
-		"See `kubetpl render --help` for more", file)
 }
 
 func readConfigFiles(path ...string) (map[string]interface{}, error) {
@@ -298,4 +331,23 @@ func parseDotEnv(data []byte) (map[string]interface{}, error) {
 		m[key] = value
 	}
 	return m, nil
+}
+
+type directive struct {
+	Key, Value string
+}
+
+func parseDirectives(s []byte) ([]directive, error) {
+	var d []directive
+	for _, line := range strings.Split(string(s), "\n") {
+		if strings.HasPrefix(line, "# kubetpl:") {
+			split := append(strings.SplitN(line[strings.Index(line, ":")+1:], ":", 2), "")
+			key, value := strings.ToLower(split[0]), strings.ToLower(split[1])
+			if key != "format" {
+				return nil, fmt.Errorf("unrecognized # kubetpl:%s directive", key)
+			}
+			d = append(d, directive{key, value})
+		}
+	}
+	return d, nil
 }

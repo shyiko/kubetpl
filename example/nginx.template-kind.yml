@@ -1,3 +1,5 @@
+# kubetpl:format:template-kind
+
 kind: Template
 apiVersion: v1
 metadata:

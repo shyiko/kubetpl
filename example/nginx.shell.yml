@@ -1,3 +1,5 @@
+# kubetpl:format:shell
+
 apiVersion: v1
 kind: ConfigMap
 metadata:

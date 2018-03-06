@@ -9,8 +9,8 @@ func init() {
 	log.SetLevel(log.DebugLevel)
 }
 
-func TestPlaceholderTemplateRender(t *testing.T) {
-	actual, err := PlaceholderTemplate{
+func TestShTemplateRender(t *testing.T) {
+	actual, err := ShellTemplate{
 		[]byte(`apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -44,8 +44,8 @@ spec:
 	}
 }
 
-func TestPlaceholderTemplateRenderIncomplete(t *testing.T) {
-	_, err := PlaceholderTemplate{
+func TestShTemplateRenderIncomplete(t *testing.T) {
+	_, err := ShellTemplate{
 		[]byte(`apiVersion: apps/v1beta1
 kind: Deployment
 metadata:

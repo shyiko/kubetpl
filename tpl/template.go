@@ -10,13 +10,3 @@ func Must(t Template, err error) Template {
 	}
 	return t
 }
-
-func isBasicYAMLType(v interface{}) bool {
-	// https://github.com/ghodss/yaml/blob/master/yaml.go#L130
-	switch v.(type) {
-	case nil, string, bool, int, int64, float64, uint64:
-		return true
-	default:
-		return false
-	}
-}

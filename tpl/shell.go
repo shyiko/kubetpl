@@ -2,20 +2,20 @@ package tpl
 
 import (
 	"fmt"
-	yamlext "github.com/shyiko/kubetpl/yml"
+	yamlext "github.com/shyiko/kubetpl/yaml"
 	"gopkg.in/yaml.v2"
 	"runtime"
 )
 
-type PlaceholderTemplate struct {
+type ShellTemplate struct {
 	content []byte
 }
 
-func NewPlaceholderTemplate(template []byte) (Template, error) {
-	return PlaceholderTemplate{template}, nil
+func NewShellTemplate(template []byte) (Template, error) {
+	return ShellTemplate{template}, nil
 }
 
-func (t PlaceholderTemplate) Render(data map[string]interface{}) (res []byte, err error) {
+func (t ShellTemplate) Render(data map[string]interface{}) (res []byte, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -26,10 +26,10 @@ func (t PlaceholderTemplate) Render(data map[string]interface{}) (res []byte, er
 	}()
 	// ensure that input is a valid yaml even if expansion is done over the whole string
 	// and not individual nodes (for now)
-	if err := yamlext.UnmarshalSlice(t.content, func(in []byte) error {
-		return yaml.Unmarshal(in, map[string]interface{}{})
-	}); err != nil {
-		return nil, err
+	for _, chunk := range yamlext.Chunk(t.content) {
+		if err := yaml.Unmarshal(chunk, map[string]interface{}{}); err != nil {
+			return nil, err
+		}
 	}
 	r, err := envsubst(string(t.content), data)
 	if err != nil {
@@ -55,7 +55,7 @@ func envsubst(value string, env map[string]interface{}) (res string, err error) 
 		if !ok || value == nil {
 			panic(fmt.Errorf("%d:%d: \"%s\" isn't set", line, col, key))
 		}
-		if !isBasicYAMLType(value) {
+		if !yamlext.IsBasicType(value) {
 			panic(fmt.Errorf("%d:%d: \"%s\" must be either a string, number or a boolean", line, col, key))
 		}
 		return fmt.Sprintf("%v", value)

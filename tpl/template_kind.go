@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	yamlext "github.com/shyiko/kubetpl/yml"
+	yamlext "github.com/shyiko/kubetpl/yaml"
 	"gopkg.in/yaml.v2"
 	"runtime"
 	"strconv"
@@ -35,32 +35,29 @@ type TemplateKindTemplateParameter struct {
 
 func NewTemplateKindTemplate(template []byte) (Template, error) {
 	var doc []interface{}
-	if err := yamlext.UnmarshalSlice(template, func(in []byte) error {
+	for _, chunk := range yamlext.Chunk(template) {
 		var tpl TemplateKindTemplate
-		err := yaml.Unmarshal(in, &tpl)
+		err := yaml.Unmarshal(chunk, &tpl)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if tpl.Kind == "Template" {
 			doc = append(doc, tpl)
-			return nil
+			continue
 		}
 		// otherwise assume that it's a regular resource
 		m := make(map[string]interface{})
-		if err := yaml.Unmarshal(in, &m); err != nil {
-			return err
+		if err := yaml.Unmarshal(chunk, &m); err != nil {
+			return nil, err
 		}
 		if len(m) == 0 {
 			// empty doc
-			return nil
+			continue
 		}
 		if m["kind"] == nil || m["kind"] == "" {
-			return errors.New("Resource \"kind\" is missing")
+			return nil, errors.New("Resource \"kind\" is missing")
 		}
 		doc = append(doc, m)
-		return nil
-	}); err != nil {
-		return nil, err
 	}
 	return mixedContentTemplate{doc}, nil
 }
@@ -122,7 +119,7 @@ func (t TemplateKindTemplate) Render(data map[string]interface{}) (res []byte, e
 					if v == nil {
 						null = true
 					}
-					if !isBasicYAMLType(value) {
+					if !yamlext.IsBasicType(value) {
 						panic(fmt.Errorf("\"%s\" must be either a string, number or a boolean", name))
 					}
 					return fmt.Sprintf("%v", v)
@@ -186,7 +183,7 @@ func (t TemplateKindTemplate) data(param map[string]interface{}) (map[string]int
 			return nil, fmt.Errorf("\"parameterType\" of \"%s\" must be either string, base64, int or bool", p.Name)
 		}
 		v := m[p.Name]
-		if !isBasicYAMLType(v) {
+		if !yamlext.IsBasicType(v) {
 			return nil, fmt.Errorf("Type of \"%s\" must be \"%s\"", p.Name, p.Type)
 		}
 		switch p.Type {
