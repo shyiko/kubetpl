@@ -37,6 +37,15 @@ func (f *simpleFormatter) Format(entry *log.Entry) ([]byte, error) {
 }
 
 func main() {
+	completion := NewCompletion()
+	completed, err := completion.Execute()
+	if err != nil {
+		log.Debug(err)
+		os.Exit(3)
+	}
+	if completed {
+		os.Exit(0)
+	}
 	var format, chroot string
 	var configFiles, configKeyValuePairs []string
 	var chrootTemplateDir bool
@@ -153,6 +162,41 @@ func main() {
 		"--chroot=<directory containing template> shorthand")
 	renderCmd.Flags().StringP("output", "o", "", "Redirect output to a file")
 	rootCmd.AddCommand(renderCmd)
+	completionCmd := &cobra.Command{
+		Use:   "completion",
+		Short: "Command-line completion",
+	}
+	completionCmd.AddCommand(
+		&cobra.Command{
+			Use:   "bash",
+			Short: "Generate Bash completion",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if len(args) != 0 {
+					return pflag.ErrHelp
+				}
+				if err := completion.GenBashCompletion(os.Stdout); err != nil {
+					log.Error(err)
+				}
+				return nil
+			},
+			Example: "  source <(kubetpl completion bash)",
+		},
+		&cobra.Command{
+			Use:   "zsh",
+			Short: "Generate Z shell completion",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if len(args) != 0 {
+					return pflag.ErrHelp
+				}
+				if err := completion.GenZshCompletion(os.Stdout); err != nil {
+					log.Error(err)
+				}
+				return nil
+			},
+			Example: "  source <(kubetpl completion zsh)",
+		},
+	)
+	rootCmd.AddCommand(completionCmd)
 	walk(rootCmd, func(cmd *cobra.Command) {
 		cmd.Flags().BoolP("help", "h", false, "Print usage")
 		cmd.Flags().MarkHidden("help")
