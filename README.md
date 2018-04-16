@@ -1,32 +1,34 @@
-# kubetpl ![Latest Version](https://img.shields.io/badge/latest-0.2.0-blue.svg) [![Build Status](https://travis-ci.org/shyiko/kubetpl.svg?branch=master)](https://travis-ci.org/shyiko/kubetpl)
+# kubetpl ![Latest Version](https://img.shields.io/badge/latest-0.3.0-blue.svg) [![Build Status](https://travis-ci.org/shyiko/kubetpl.svg?branch=master)](https://travis-ci.org/shyiko/kubetpl)
 
-Simple yet flexible client-side templating for Kubernetes.
-
-[![asciicast](https://asciinema.org/a/h2r3K7uOMHS9CyyswrA8kVN2N.png)](https://asciinema.org/a/h2r3K7uOMHS9CyyswrA8kVN2N)  
+Kubernetes templates made easy.  
+\#keep-it-simple \#no-server-component
 
 Features:
-- **Template flavor of your choice**.  
-  Start simple ([$VAR](#placeholder)). [Step up your game with go-template|s](#go-template) when (and if!) needed). 
-   
-  [placeholder](#placeholder) (aka `$VAR` / `${VAR}`) | [go-template](#go-template) (enriched with [sprig](http://masterminds.github.io/sprig/)) | [template-kind](#template-kind) (aka `kind: Template`) are available out-of-box.  
-  We also accept PRs for other formats. 
-- Support for **\*.env** (`<VAR>=<VAL>`) and **YAML** data (config) files.
-- Fail-fast defaults   
-(all variables are considered to be required and must be given a value (unless explicitly marked optional)).    
+- **Template flavor of your choice**
+  - [$](#$) (`$VAR` / `${VAR}`);
+  - [go-template](#go-go-template) (go-template enriched with [sprig](http://masterminds.github.io/sprig/)); 
+  - [template-kind](#template-kind) (`kind: Template`).
+- Support for **\*.env** (`<VAR>=<VAL>`) and **YAML** / **JSON** config files.
+- **Fail-fast defaults** (all variables must be given a value (unless explicitly marked optional)).
+- [ConfigMap/Secret freezing](#configmapsecret-freezing) for easier and less error-prone ConfigMap/Secret rollouts  
+(something to consider ~~if~~ when you hit [kubernetes/kubernetes#22368](https://github.com/kubernetes/kubernetes/issues/22368)).  
+- [ConfigMap/Secret "data-from-file" injection](#configmapsecret-data-from-file-injection) when `kubectl create configmap ... --from-file=... --from-file=... --from-file=... ...` feels like too much typing.
+- `image:tag` -> `image@digest` pinning with the help of [dockry](https://github.com/shyiko/dockry)   
+(e.g. `kubetpl render -s IMAGE=$(dockry digest --fq user/image:master) ...` to force redeployment of the new build published under the same tag).
 
 ## Installation
 
 #### macOS / Linux
 
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.2.0/kubetpl-0.2.0-$(
+curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.3.0/kubetpl-0.3.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64 -o kubetpl && chmod a+x kubetpl && sudo mv kubetpl /usr/local/bin/
 ```
     
 Verify PGP signature (optional but recommended):    
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.2.0/kubetpl-0.2.0-$(
+curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.3.0/kubetpl-0.3.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64.asc -o kubetpl.asc
 curl -sS https://keybase.io/shyiko/pgp_keys.asc | gpg --import
@@ -42,67 +44,101 @@ Download executable from the [Releases](https://github.com/shyiko/kubetpl/releas
 ## Usage
 
 ```sh
-# config files can be either in .env (effectively ini without sections)
-$ cat staging.env
+# create template
+echo $'
+# kubetpl:syntax:$
 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: $NAME-pod
+spec:
+  containers:
+  - name: $NAME-container
+    image: $IMAGE
+    env:
+    - name: ENV_KEY
+      value: $ENV_KEY
+' > template.yml 
+
+# create config file (.env, .yml/.yaml or .json) (optional)
+# (you'll probably have a different config file for each cluster/namespace/etc)
+echo $'
 NAME=sample-app
-REPLICAS=1
+ENV_KEY=value
+' > staging.env
+# you might not need a config file if there are only a handful of variables (like in this case)
+# -s/--set key=value might be enough
 
-# ... or YAML 
-$ cat staging.env.yml
+# render template
+kubetpl render template.yml -i staging.env -s IMAGE=nginx 
 
-NAME: sample-app
-REPLICAS: 1
-
-# ... and considering that JSON is a subset of YAML, JSON
-$ cat staging.env.json
-
-{"NAME": "sample-app", "REPLICAS": 1}
-
-# to render "placeholder" (aka $VAR / ${VAR}) type of template
-# (e.g. https://github.com/shyiko/kubetpl/blob/master/example/nginx.yml.kubetpl)
-$ kubetpl render svc-and-deploy.yml.kubetpl -i staging.env -s KEY=VALUE
-# same as above
-$ kubetpl render svc-and-deploy.yml --type=placeholder -i staging.env -s KEY=VALUE
-$ kubetpl render svc-and-deploy.yml -P -i staging.env -s KEY=VALUE
-
-# to render "go-template" type of template
-# (e.g. https://github.com/shyiko/kubetpl/blob/master/example/nginx.yml.kubetpl-go)
-$ kubetpl render svc-and-deploy.yml.kubetpl-go -i staging.yml -s KEY=VALUE
-# same as above
-$ kubetpl render svc-and-deploy.yml --type=go-template -i staging.env -s KEY=VALUE
-$ kubetpl render svc-and-deploy.yml -G -i staging.env -s KEY=VALUE
-
-# to render "template-kind" (aka "kind: Template") type of template
-# (e.g. https://github.com/shyiko/kubetpl/blob/master/example/nginx.yml)
-$ kubetpl render svc-and-deploy.yml -i staging.yml -s KEY=VALUE
-# same as above
-$ kubetpl render svc-and-deploy.yml --type=template-kind -i staging.env -s KEY=VALUE
-$ kubetpl render svc-and-deploy.yml -T -i staging.env -s KEY=VALUE
-
-# to apply template just pipe it through kubectl    
-$ kubetpl render svc-and-deploy.yml.kubetpl -i k8s/staging.env | 
+# to apply, pipe "render"ed output through kubectl    
+kubetpl render template.yml -i staging.env -s IMAGE=nginx | 
   kubectl apply -f -
-
-# you can also render remote template(s)
-$ kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.kubetpl \
+  
+# you can also apply remote template(s) 
+kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.sh.yml \
   -s NAME=kubetpl-example-nginx -s MESSAGE="hello $(whoami)" | 
-  kubectl apply -f -
-# same as
-$ printf "NAME=kubetpl-example-nginx\nMESSAGE=hello $(whoami)" > default.env
-$ kubetpl render https://rawgit.com/shyiko/kubetpl/master/example/nginx.yml.kubetpl -i default.env | 
   kubectl apply -f -
 ```
 
-> (for more examples see below)
+> (for more examples see [Template flavors](#template-flavors))
+
+#### <kbd>Tab</kbd> completion
+
+```sh
+# bash
+source <(kubetpl completion bash)
+
+# zsh
+source <(kubetpl completion zsh)
+```
+
+## ConfigMap/Secret freezing
+
+When `kubetpl render --freeze ...` is used, kubetpl rewrites `ConfigMap`/`Secret`'s name to include hash of the content 
+and then updates all the references (in `Pod`s / `DaemonSet`s / `Deployment`s / `Job`s / `ReplicaSet`s / `ReplicationController`s / `StatefulSet`s / `CronJob`s) with a new value.
+
+For example, executing [`kubetpl render --freeze example/nginx-with-configmap-frozen.sh.yml -s NAME=app -s MESSAGE=msg`](example/nginx-with-configmap-frozen.sh.yml) 
+should produce [example/nginx-with-configmap-frozen.sh.rendered.yml](example/nginx-with-configmap-frozen.sh.rendered.yml).
+ 
+NOTE: this feature can be used regardless of the [Template flavor](#template-flavors) choice (or lack thereof (i.e. on its own)).
+
+## ConfigMap/Secret "data-from-file" injection
+
+Optionally, ConfigMap/Secret|s can be extended with `kubetpl/data-from-file` to load "data" from a list of files (relative to a template unless a different `-c/--chroot` is specified), e.g.  
+
+```yaml
+kind: ConfigMap
+kubetpl/data-from-file: 
+  - file 
+  - path/to/another-file
+  - custom-key=yet-another-file
+data:
+  key: value
+...
+``` 
+
+Upon `kubetpl render` the content of `file`, `another-file` and `yet-another-file` (using `custom-key` as a key)
+will be added to the object's "data" (`kubetpl/data-from-file` is automatically striped away).
+
+For example, executing [`kubetpl render --allow-fs-access example/nginx-with-data-from-file.yml -s NAME=app`](example/nginx-with-data-from-file.yml) 
+should produce [example/nginx-with-data-from-file.rendered.yml](example/nginx-with-data-from-file.rendered.yml).
+
+NOTE #1: for security reasons, `kubetpl/data-form-file` is not allowed to read files unless `--allow-fs-access` or `-c/--chroot=<root dir>` is specified (see `kubetpl render --help` for more). 
+
+NOTE #2: this feature can be used regardless of the [Template flavor](#template-flavors) choice (or lack thereof (i.e. on its own)).
 
 ## Template flavors
 
-### placeholder
+Template syntax is determined by first checking template for `# kubetpl:syntax:<$|go-template|template-kind>` comment 
+and then, if not found, `--syntax=<$|go-template|template-kind>` command line option. In the absence of both, 
+kubetpl assumes that template is a regular resource definition file.
 
-> aka $VAR / ${VAR}  
+### $
 
-This is the type of template where all instances of $VAR / ${VAR} are replaced with corresponding values. If, for some variable, no value
+A type of template where all instances of $VAR / ${VAR} are replaced with corresponding values. If, for some variable, no value
 is given - an error will be raised. 
 
 > Use `$$` when you need a literal dollar sign (`$$v` is interpreted as `$v` string and not `'$' + <value_of_v>`). 
@@ -120,9 +156,11 @@ REPLICAS=1
 ```
 </details>
 <details>
-  <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.kubetpl</summary>
+  <summary>&lt;project_dir&gt;/k8s/template.yml</summary>
 
 ```yaml  
+# kubetpl:syntax:$
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -154,7 +192,7 @@ spec:
 </details>
 <p><p>
 
-`kubetpl render k8s/svc-and-deploy.yml.kubetpl -i k8s/staging.env -s REPLICAS=3` should then yield
+`kubetpl render k8s/template.yml -i k8s/staging.env -s REPLICAS=3` should then yield
 
 <details>
   <summary>(click to expand)</summary>
@@ -191,9 +229,6 @@ spec:
 </details>
 <p><p>
 
-> Template `--type` is automatically inferred as `placeholder` if filename ends with `.yaml.kubetpl` or `.yml.kubetpl`. 
-You can also specify it like this: `kubetpl k8s/svc-and-deploy.yml --type=placeholder ...`.
-
 ### go-template
 
 > All functions provided by [sprig](http://masterminds.github.io/sprig/) are available  
@@ -213,17 +248,19 @@ Some of the most commonly used expressions:
 Let's say we have the following (click to expand):
 
 <details>
-  <summary>&lt;project_dir&gt;/k8s/staging.env.yml</summary>
+  <summary>&lt;project_dir&gt;/k8s/staging.env</summary>
 
 ```yaml
-NAME: sample-app
-REPLICAS: 1
+NAME=sample-app
+REPLICAS=1
 ```
 </details>
 <details>
-  <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml.kubetpl-go</summary>
+  <summary>&lt;project_dir&gt;/k8s/template.yml</summary>
 
-```yaml  
+```yaml
+# kubetpl:syntax:go-template
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -255,7 +292,7 @@ spec:
 </details>
 <p><p>
 
-`kubetpl render k8s/svc-and-deploy.yml.kubetpl-go -i k8s/staging.env.yml -s REPLICAS=3` should then yield
+`kubetpl render k8s/template.yml -i k8s/staging.env -s REPLICAS=3` should then yield
 
 <details>
   <summary>(click to expand)</summary>
@@ -292,30 +329,29 @@ spec:
 </details>
 <p><p>
 
-> Template `--type` is automatically inferred as `go-template` if filename ends with `.yaml.kubetpl-go` or `.yml.kubetpl-go`. 
-You can also specify it like this: `kubetpl k8s/svc-and-deploy.yml --type=go-template ...`.
-
 ### template-kind
 
 > aka `kind: Template`. 
 
-Structure of the template is described in [Templates + Parameterization proposal](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/apps/OBSOLETE_templates.md).
+As described in [Templates + Parameterization proposal](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/apps/OBSOLETE_templates.md).
 
 ##### Example
 
 Let's say we have the following (click to expand):
 
 <details>
-  <summary>&lt;project_dir&gt;/k8s/staging.env.yml</summary>
+  <summary>&lt;project_dir&gt;/k8s/staging.env</summary>
 
 ```yaml
-NAME: sample-app
+NAME=sample-app
 ```
 </details>
 <details>
-  <summary>&lt;project_dir&gt;/k8s/svc-and-deploy.yml</summary>
+  <summary>&lt;project_dir&gt;/k8s/template.yml</summary>
 
-```yaml  
+```yaml
+# kubetpl:syntax:template-kind
+
 kind: Template
 apiVersion: v1
 metadata:
@@ -363,7 +399,7 @@ parameters:
 </details>
 <p><p>
 
-`kubetpl render k8s/svc-and-deploy.yml -i k8s/staging.env.yml -s REPLICAS=3` should then yield
+`kubetpl render k8s/template.yml -i k8s/staging.env -s REPLICAS=3` should then yield
 
 <details>
   <summary>(click to expand)</summary>
