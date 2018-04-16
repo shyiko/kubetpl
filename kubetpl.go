@@ -159,7 +159,7 @@ func main() {
 		"use --syntax=<$|go-template|template-kind> instead\n"+
 			"(if you wish to avoid typing --syntax=... - "+
 			"add \"# kubetpl:syntax:<$, go-template or template-kind>\" comment (preferably at the top of the template))")
-	renderCmd.Flags().StringVarP(&syntax, "syntax", "x", "", "Template flavor ($, go-template or template-kind)")
+	renderCmd.Flags().StringVarP(&syntax, "syntax", "x", "", "Template flavor ($, go-template or template-kind) (https://github.com/shyiko/kubetpl#template-flavors)")
 	renderCmd.Flags().BoolP("shorthand-P", "P", false, "")
 	renderCmd.Flags().BoolP("shorthand-G", "G", false, "")
 	renderCmd.Flags().BoolP("shorthand-T", "T", false, "")
