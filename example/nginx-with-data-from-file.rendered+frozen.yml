@@ -1,27 +1,29 @@
-# kubetpl:syntax:$
-
+---
 apiVersion: v1
 data:
+  404.html: |
+    <!doctype html>
+    <title>*</title>
+  index.html: |
+    <!doctype html>
+    <title>*</title>
   robots.txt: |
     User-agent: *
     Disallow: /
 kind: ConfigMap
-kubetpl/data-from-file:
-- index.html
-- 404.html=index.html
 metadata:
-  name: $NAME
+  name: app-fba46ca
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: $NAME
+  name: app
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: $NAME
+        app: app
     spec:
       containers:
       - image: nginx:1.7.9
@@ -29,9 +31,9 @@ spec:
         ports:
         - containerPort: 80
         volumeMounts:
-        - name: $NAME-volume
-          mountPath: /usr/share/nginx/html
+        - mountPath: /usr/share/nginx/html
+          name: app-volume
       volumes:
       - configMap:
-          name: $NAME
-        name: $NAME-volume
+          name: app-fba46ca
+        name: app-volume

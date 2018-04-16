@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"flag"
@@ -45,17 +45,20 @@ func (c *Completion) Execute() (bool, error) {
 			},
 			"render": complete.Command{
 				Flags: complete.Flags{
-					"--chroot":         complete.PredictDirs("*"),
-					"-c":               complete.PredictDirs("*"),
-					"--chroot-dirname": complete.PredictNothing,
-					"-C":               complete.PredictNothing,
-					"--format":         complete.PredictSet("shell", "go-template", "kind-template"),
-					"--input":          complete.PredictFiles("*"),
-					"-i":               complete.PredictFiles("*"),
-					"--output":         complete.PredictFiles("*"),
-					"-o":               complete.PredictFiles("*"),
-					"--set":            complete.PredictAnything,
-					"-s":               complete.PredictAnything,
+					"--allow-fs-access": complete.PredictNothing,
+					"--chroot":          complete.PredictDirs("*"),
+					"-c":                complete.PredictDirs("*"),
+					"--freeze":          complete.PredictNothing,
+					"-z":                complete.PredictNothing,
+					"--freeze-list":     complete.PredictAnything,
+					"--freeze-ref":      complete.PredictFiles("*"),
+					"--input":           complete.PredictFiles("*"),
+					"-i":                complete.PredictFiles("*"),
+					"--output":          complete.PredictFiles("*"),
+					"-o":                complete.PredictFiles("*"),
+					"--set":             complete.PredictAnything,
+					"-s":                complete.PredictAnything,
+					"--syntax":          complete.PredictSet("$", "go-template", "kind-template"),
 				},
 				Args: complete.PredictAnything,
 			},

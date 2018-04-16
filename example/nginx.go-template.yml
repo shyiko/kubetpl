@@ -1,4 +1,4 @@
-# kubetpl:format:go-template
+# kubetpl:syntax:go-template
 
 apiVersion: v1
 kind: ConfigMap

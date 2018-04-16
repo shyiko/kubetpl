@@ -1,4 +1,4 @@
-package tpl
+package engine
 
 import (
 	"fmt"
@@ -48,7 +48,7 @@ func envsubst(value string, env map[string]interface{}) (res string, err error) 
 		}
 	}()
 	res = expandWithLineColumnInfo(value, func(key string, line int, col int) string {
-		if key == "$" {
+		if key == "$" || key == "" {
 			return "$"
 		}
 		value, ok := env[key]

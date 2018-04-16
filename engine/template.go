@@ -1,4 +1,4 @@
-package tpl
+package engine
 
 type Template interface {
 	Render(data map[string]interface{}) ([]byte, error)

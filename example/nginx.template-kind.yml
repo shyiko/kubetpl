@@ -1,4 +1,4 @@
-# kubetpl:format:template-kind
+# kubetpl:syntax:template-kind
 
 kind: Template
 apiVersion: v1

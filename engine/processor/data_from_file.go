@@ -1,14 +1,18 @@
-package tpl
+package processor
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 )
 
 var kubetplDataFromFile = "kubetpl/data-from-file"
 
-func ReplaceDataFromFileInPlace(obj map[interface{}]interface{}, load func(file string) (string, []byte, error)) (bool, error) {
-	if obj["kind"] != "ConfigMap" && obj["kind"] != "Secret" { // todo: error?
+func ReplaceDataFromFileInPlace(
+	obj map[interface{}]interface{},
+	read func(file string) (string, []byte, error),
+) (bool, error) {
+	if obj["kind"] != "ConfigMap" && obj["kind"] != "Secret" {
 		return false, nil
 	}
 	if obj[kubetplDataFromFile] == nil {
@@ -16,22 +20,22 @@ func ReplaceDataFromFileInPlace(obj map[interface{}]interface{}, load func(file 
 	}
 	var entries []string
 	switch v := obj[kubetplDataFromFile].(type) {
-	case string:
-		entries = []string{v}
 	case []interface{}:
-		for _, v0 := range v {
-			entries = append(entries, v0.(string)) // fixme: panic
+		for _, entry := range v {
+			entries = append(entries, fmt.Sprintf("%v", entry))
 		}
 	default:
-		return false, fmt.Errorf("%s expects a list of strings", kubetplDataFromFile)
+		entries = []string{fmt.Sprintf("%v", v)}
 	}
 	var r []fileEntry
-	for _, e := range entries {
-		split := strings.Split(e, "=")
+	for _, entry := range entries {
+		if entry == "" {
+			continue
+		}
+		split := strings.SplitN(entry, "=", 2)
 		if len(split) == 1 {
 			split = []string{"", split[0]}
 		}
-		//split := append(strings.Split(e, "="), e)
 		key, value := strings.TrimSpace(split[0]), strings.TrimSpace(split[1])
 		if value != "" {
 			r = append(r, fileEntry{key, value})
@@ -43,15 +47,18 @@ func ReplaceDataFromFileInPlace(obj map[interface{}]interface{}, load func(file 
 		obj["data"] = data
 	}
 	for _, e := range r {
-		defkey, value, err := load(e.value)
+		key, value, err := read(e.value)
 		if err != nil {
 			return false, err
 		}
-		key := e.key
-		if key == "" {
-			key = defkey
+		if e.key != "" { // key override
+			key = e.key
 		}
-		data[key] = string(value)
+		if obj["kind"] == "Secret" {
+			data[key] = base64.StdEncoding.EncodeToString(value)
+		} else {
+			data[key] = string(value)
+		}
 	}
 	delete(obj, kubetplDataFromFile)
 	return len(r) != 0, nil

@@ -1,4 +1,4 @@
-package tpl
+package engine
 
 import (
 	log "github.com/Sirupsen/logrus"
@@ -9,19 +9,18 @@ func init() {
 	log.SetLevel(log.DebugLevel)
 }
 
-func TestShTemplateRender(t *testing.T) {
-	actual, err := ShellTemplate{
+func TestGoTemplateRender(t *testing.T) {
+	actual, err := Must(NewGoTemplate(
 		[]byte(`apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: $NAME-deployment
+  name: {{ .NAME }}-deployment
   annotations:
-    replicas-as-string: "$REPLICAS"
-    key: "${NAME}$$VALUE" # $${...} and $$$$ test
+    replicas-as-string: {{ .REPLICAS | quote }}
 spec:
-  replicas: $REPLICAS
-`),
-	}.Render(map[string]interface{}{
+  replicas: {{ .REPLICAS }}
+`), "template"),
+	).Render(map[string]interface{}{
 		"NAME":     "app",
 		"NOT_USED": "value",
 		"REPLICAS": 1,
@@ -35,7 +34,6 @@ metadata:
   name: app-deployment
   annotations:
     replicas-as-string: "1"
-    key: "app$VALUE" # ${...} and $$ test
 spec:
   replicas: 1
 `
@@ -44,21 +42,17 @@ spec:
 	}
 }
 
-func TestShTemplateRenderIncomplete(t *testing.T) {
-	_, err := ShellTemplate{
+func TestGoTemplateRenderIncomplete(t *testing.T) {
+	_, err := Must(NewGoTemplate(
 		[]byte(`apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: $NAME-deployment
-`),
-	}.Render(map[string]interface{}{
+  name: {{ .NAME }}-deployment
+`), "template"),
+	).Render(map[string]interface{}{
 		"NOT_USED": "value",
 	})
 	if err == nil {
 		t.Fatal()
-	}
-	expected := `4:9: "NAME" isn't set`
-	if err.Error() != expected {
-		t.Fatalf("actual: \n%s != expected: \n%s", err.Error(), expected)
 	}
 }

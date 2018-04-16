@@ -1,4 +1,4 @@
-# kubetpl:format:shell
+# kubetpl:syntax:$
 
 apiVersion: v1
 kind: ConfigMap
