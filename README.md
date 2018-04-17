@@ -101,7 +101,7 @@ When `kubetpl render --freeze ...` is used, kubetpl rewrites `ConfigMap`/`Secret
 and then updates all the references (in `Pod`s / `DaemonSet`s / `Deployment`s / `Job`s / `ReplicaSet`s / `ReplicationController`s / `StatefulSet`s / `CronJob`s) with a new value.
 
 For example, executing [`kubetpl render --freeze example/nginx-with-configmap-frozen.sh.yml -s NAME=app -s MESSAGE=msg`](example/nginx-with-configmap-frozen.sh.yml) 
-should produce [example/nginx-with-configmap-frozen.sh.rendered.yml](example/nginx-with-configmap-frozen.sh.rendered.yml).
+should produce [example/nginx-with-data-from-file.rendered+frozen.yml](example/nginx-with-data-from-file.rendered+frozen.yml).
  
 NOTE: this feature can be used regardless of the [Template flavor](#template-flavors) choice (or lack thereof (i.e. on its own)).
 
