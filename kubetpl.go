@@ -375,9 +375,15 @@ func renderTemplate(templateFile string, config map[string]interface{}, format s
 				return "", nil, err
 			}
 			if templateChroot == "" || !strings.HasPrefix(file, templateChroot) {
-				return "", nil, fmt.Errorf(`%s: denied access to "%s"`+
-					" (use --allow-fs-access and/or -c/--chroot=<root dir> to allow)",
-					templateFile, file)
+				fileRel := file
+				if cwd, err := os.Getwd(); err == nil {
+					if p, err := filepath.Rel(cwd, file); err == nil {
+						fileRel = p
+					}
+				}
+				return "", nil, fmt.Errorf(`%s: access denied: %s`+
+					" (use --allow-fs-access and/or -c/--chroot=<root dir, e.g. '.'> to allow)",
+					templateFile, fileRel)
 			}
 			data, err := ioutil.ReadFile(file)
 			return filepath.Base(file), data, err
