@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"strings"
 )
@@ -39,7 +40,7 @@ func init() {
 		"spec.volumes[*].configMap.name",
 	}
 	secret[kindPod] = []string{
-		"spec.containers[*].env.valueFrom.secretKeyRef.name",
+		"spec.containers[*].env[*].valueFrom.secretKeyRef.name",
 	}
 	for _, kind := range []string{
 		kindDaemonSet,
@@ -53,14 +54,14 @@ func init() {
 			"spec.template.spec.volumes[*].configMap.name",
 		}
 		secret[kind] = []string{
-			"spec.template.spec.containers[*].env.valueFrom.secretKeyRef.name",
+			"spec.template.spec.containers[*].env[*].valueFrom.secretKeyRef.name",
 		}
 	}
 	configMap[kindCronJob] = []string{
 		"spec.jobTemplate.spec.template.spec.volumes[*].configMap.name",
 	}
 	secret[kindCronJob] = []string{
-		"spec.jobTemplate.spec.template.spec.containers[*].env.valueFrom.secretKeyRef.name",
+		"spec.jobTemplate.spec.template.spec.containers[*].env[*].valueFrom.secretKeyRef.name",
 	}
 	pathsToRewrite = map[kind]map[kind][]string{
 		kindConfigMap: configMap,
@@ -76,6 +77,13 @@ type FreezeRequest struct {
 
 func FreezeInPlace(r FreezeRequest) error {
 	var refs []frozenObjectRef
+	var includeIndex map[string]bool
+	if r.Include != nil {
+		includeIndex = make(map[string]bool)
+		for _, include := range r.Include {
+			includeIndex[include] = true
+		}
+	}
 	for _, obj := range append(append([]map[interface{}]interface{}{}, r.Refs...), r.Docs...) {
 		if err := validate(obj); err != nil {
 			return err
@@ -86,13 +94,14 @@ func FreezeInPlace(r FreezeRequest) error {
 		if kind != kindConfigMap && kind != kindSecret {
 			continue
 		}
-		if r.Include != nil && !contains(r.Include, kind+"/"+name) {
+		if includeIndex != nil && !includeIndex[kind+"/"+name] {
 			continue
 		}
 		ref, err := freeze(obj)
 		if err != nil {
 			return err
 		}
+		log.Debugf("freeze: %#v", ref)
 		refs = append(refs, ref)
 	}
 	// making sure all requested kind/name pairs were found
@@ -111,13 +120,31 @@ nextAssertion:
 		return fmt.Errorf(`"%s" not found`, assertion)
 	}
 	// checking for duplicates
-	index := make(map[string]bool)
+	refIndex := make(map[string]bool)
 	for _, ref := range refs {
 		k := ref.kind + "/" + ref.name
-		if index[k] {
+		if refIndex[k] {
 			return fmt.Errorf(`Multiple "%s"s found`, k)
 		}
-		index[k] = true
+		refIndex[k] = true
+	}
+	// making sure no ConfigMap/Secret evades freezing (subject to FreezeRequest.Include)
+	for _, obj := range r.Docs {
+		if obj["kind"] != kindConfigMap && obj["kind"] != kindSecret {
+			for _, ref := range refs {
+				if err := traverseRefs(obj, ref, func(node map[interface{}]interface{}, key string, path string) error {
+					if v, ok := node[key].(string); ok {
+						key := ref.kind + "/" + v
+						if !refIndex[key] && (includeIndex == nil || includeIndex[key]) {
+							return fmt.Errorf(`Stumbled upon unknown %s reference. Have you forgot to --freeze-ref it?`, key)
+						}
+					}
+					return nil
+				}); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	// rewriting refs (up until this moment nothing should not have been mutated)
 	for _, obj := range r.Docs {
@@ -133,20 +160,17 @@ nextAssertion:
 			}
 		} else {
 			for _, ref := range refs {
-				updateRefs(obj, ref)
+				traverseRefs(obj, ref, func(node map[interface{}]interface{}, key string, path string) error {
+					if node[key] == ref.name {
+						log.Debugf(`freeze: changing "%s" to "%s" ("%s")`, ref.name, ref.updatedName, path)
+						node[key] = ref.updatedName
+					}
+					return nil
+				})
 			}
 		}
 	}
 	return nil
-}
-
-func contains(s []string, v string) bool {
-	for _, a := range s {
-		if a == v {
-			return true
-		}
-	}
-	return false
 }
 
 func validate(obj map[interface{}]interface{}) error {
@@ -178,15 +202,19 @@ func freeze(obj map[interface{}]interface{}) (frozenObjectRef, error) {
 	return frozenObjectRef{kind: kind, name: name, updatedName: updatedName}, nil
 }
 
-func updateRefs(obj map[interface{}]interface{}, ref frozenObjectRef) {
+func traverseRefs(
+	obj map[interface{}]interface{},
+	ref frozenObjectRef,
+	cb func(node map[interface{}]interface{}, key string, path string) error,
+) error {
 	rules, ok := pathsToRewrite[ref.kind]
 	if !ok {
-		return
+		return nil
 	}
 	kind := obj["kind"].(string)
 	paths, ok := rules[kind]
 	if !ok {
-		return
+		return nil
 	}
 	for _, path := range paths {
 		d := strings.LastIndex(path, ".")
@@ -211,12 +239,14 @@ func updateRefs(obj map[interface{}]interface{}, ref frozenObjectRef) {
 			rr = rn
 		}
 		for _, r := range rr {
-			m, ok := r.(map[interface{}]interface{})
-			if ok && m[last] == ref.name {
-				m[last] = ref.updatedName
+			if m, ok := r.(map[interface{}]interface{}); ok {
+				if err := cb(m, last, path); err != nil {
+					return err
+				}
 			}
 		}
 	}
+	return nil
 }
 
 func get(m map[interface{}]interface{}, path []string) interface{} {

@@ -3,6 +3,7 @@ package processor
 import (
 	"encoding/base64"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"strings"
 )
 
@@ -47,6 +48,7 @@ func ReplaceDataFromFileInPlace(
 		obj["data"] = data
 	}
 	for _, e := range r {
+		log.Debugf(`kubetpl/data-from-file: loading %s`, e.value)
 		key, value, err := read(e.value)
 		if err != nil {
 			return false, err
