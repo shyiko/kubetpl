@@ -104,7 +104,7 @@ func FreezeInPlace(r FreezeRequest) error {
 		if err != nil {
 			return err
 		}
-		log.Debugf("freeze: %#v", ref)
+		log.Debugf("freeze: freezing %s/%s as %s/%s", ref.kind, ref.name, ref.kind, ref.updatedName)
 		refs = append(refs, ref)
 	}
 	// making sure all requested kind/name pairs were found
@@ -133,13 +133,19 @@ nextAssertion:
 	}
 	// making sure no ConfigMap/Secret evades freezing (subject to FreezeRequest.Include)
 	for _, obj := range r.Docs {
-		if obj["kind"] != kindConfigMap && obj["kind"] != kindSecret {
+		kind := obj["kind"].(string)
+		if kind != kindConfigMap && kind != kindSecret {
+			meta := obj["metadata"].(map[interface{}]interface{})
+			name := meta["name"].(string)
 			for _, ref := range refs {
 				if err := traverseRefs(obj, ref, func(node map[interface{}]interface{}, key string, path string) error {
 					if v, ok := node[key].(string); ok {
 						key := ref.kind + "/" + v
 						if !refIndex[key] && (includeIndex == nil || includeIndex[key]) {
-							return fmt.Errorf(`Stumbled upon unknown %s reference. Have you forgot to --freeze-ref it?`, key)
+							return fmt.Errorf(`Stumbled upon unknown %s reference (in %s/%s).`+
+								"\nHave you forgot to --freeze-ref it?"+
+								"\n(if --freeze-ref is pointing to a template - "+
+								"check that \"# kubetpl:syntax:<template flavor, e.g. $>\" is present)", key, kind, name)
 						}
 					}
 					return nil
@@ -152,9 +158,9 @@ nextAssertion:
 	// rewriting refs (up until this moment nothing should not have been mutated)
 	for _, obj := range r.Docs {
 		kind := obj["kind"].(string)
+		meta := obj["metadata"].(map[interface{}]interface{})
+		name := meta["name"].(string)
 		if kind == kindConfigMap || kind == kindSecret {
-			meta := obj["metadata"].(map[interface{}]interface{})
-			name := meta["name"].(string)
 			for _, ref := range refs {
 				if kind == ref.kind && name == ref.name {
 					meta["name"] = ref.updatedName
@@ -165,7 +171,7 @@ nextAssertion:
 			for _, ref := range refs {
 				traverseRefs(obj, ref, func(node map[interface{}]interface{}, key string, path string) error {
 					if node[key] == ref.name {
-						log.Debugf(`freeze: changing "%s" to "%s" ("%s")`, ref.name, ref.updatedName, path)
+						log.Debugf(`freeze: rewriting %s to %s (%s in %s/%s)`, ref.name, ref.updatedName, path, kind, name)
 						node[key] = ref.updatedName
 					}
 					return nil
