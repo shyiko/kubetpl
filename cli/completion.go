@@ -59,8 +59,9 @@ func (c *Completion) Execute() (bool, error) {
 					"--set":             complete.PredictAnything,
 					"-s":                complete.PredictAnything,
 					"--syntax":          complete.PredictSet("$", "go-template", "kind-template"),
+					"-x":                complete.PredictSet("$", "go-template", "kind-template"),
 				},
-				Args: complete.PredictAnything,
+				Args: complete.PredictFiles("*"),
 			},
 			"help": complete.Command{
 				Sub: complete.Commands{
