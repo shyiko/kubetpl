@@ -283,6 +283,9 @@ func render(templateFiles []string, data map[string]interface{}, opts renderOpts
 	}
 	var buf bytes.Buffer
 	for _, obj := range objs {
+		if len(obj.body) == 0 {
+			continue
+		}
 		o, err := yaml.Marshal(obj.body)
 		if err != nil {
 			return nil, err
