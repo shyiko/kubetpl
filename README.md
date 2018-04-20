@@ -1,4 +1,4 @@
-# kubetpl ![Latest Version](https://img.shields.io/badge/latest-0.3.0-blue.svg) [![Build Status](https://travis-ci.org/shyiko/kubetpl.svg?branch=master)](https://travis-ci.org/shyiko/kubetpl)
+# kubetpl ![Latest Version](https://img.shields.io/badge/latest-0.4.0-blue.svg) [![Build Status](https://travis-ci.org/shyiko/kubetpl.svg?branch=master)](https://travis-ci.org/shyiko/kubetpl)
 
 Kubernetes templates made easy.  
 \#keep-it-simple \#no-server-component
@@ -21,14 +21,14 @@ Features:
 #### macOS / Linux
 
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.3.0/kubetpl-0.3.0-$(
+curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.4.0/kubetpl-0.4.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64 -o kubetpl && chmod a+x kubetpl && sudo mv kubetpl /usr/local/bin/
 ```
     
 Verify PGP signature (optional but recommended):    
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.3.0/kubetpl-0.3.0-$(
+curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.4.0/kubetpl-0.4.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64.asc -o kubetpl.asc
 curl -sS https://keybase.io/shyiko/pgp_keys.asc | gpg --import
@@ -100,7 +100,7 @@ source <(kubetpl completion zsh)
 When `kubetpl render --freeze ...` is used, kubetpl rewrites `ConfigMap`/`Secret`'s name to include hash of the content 
 and then updates all the references (in `Pod`s / `DaemonSet`s / `Deployment`s / `Job`s / `ReplicaSet`s / `ReplicationController`s / `StatefulSet`s / `CronJob`s) with a new value.
 
-For example, executing [`kubetpl render --freeze example/nginx-with-configmap-frozen.sh.yml -s NAME=app -s MESSAGE=msg`](example/nginx-with-configmap-frozen.sh.yml) 
+For example, executing [`kubetpl render --freeze example/nginx-with-data-from-file.yml -s NAME=app -s MESSAGE=msg`](example/nginx-with-data-from-file.yml) 
 should produce [example/nginx-with-data-from-file.rendered+frozen.yml](example/nginx-with-data-from-file.rendered+frozen.yml).
  
 NOTE: this feature can be used regardless of the [Template flavor](#template-flavors) choice (or lack thereof (i.e. on its own)).
