@@ -14,7 +14,8 @@ import (
 )
 
 type mixedContentTemplate struct {
-	doc []interface{}
+	doc    []interface{}
+	footer []byte
 }
 
 type TemplateKindTemplate struct {
@@ -59,7 +60,7 @@ func NewTemplateKindTemplate(template []byte) (Template, error) {
 		}
 		doc = append(doc, m)
 	}
-	return mixedContentTemplate{doc}, nil
+	return mixedContentTemplate{doc, yamlext.Footer(template)}, nil
 }
 
 func (t mixedContentTemplate) Render(data map[string]interface{}) ([]byte, error) {
@@ -83,6 +84,7 @@ func (t mixedContentTemplate) Render(data map[string]interface{}) ([]byte, error
 			buf.Write(res)
 		}
 	}
+	buf.Write(t.footer)
 	return buf.Bytes(), nil
 }
 
