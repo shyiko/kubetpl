@@ -1,4 +1,4 @@
-# kubetpl ![Latest Version](https://img.shields.io/badge/latest-0.4.1-blue.svg) [![Build Status](https://travis-ci.org/shyiko/kubetpl.svg?branch=master)](https://travis-ci.org/shyiko/kubetpl)
+# kubetpl ![Latest Version](https://img.shields.io/badge/latest-0.5.0-blue.svg) [![Build Status](https://travis-ci.org/shyiko/kubetpl.svg?branch=master)](https://travis-ci.org/shyiko/kubetpl)
 
 Kubernetes templates made easy.  
 \#keep-it-simple \#no-server-component
@@ -21,14 +21,14 @@ Features:
 #### macOS / Linux
 
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.4.1/kubetpl-0.4.1-$(
+curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.5.0/kubetpl-0.5.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64 -o kubetpl && chmod a+x kubetpl && sudo mv kubetpl /usr/local/bin/
 ```
     
 Verify PGP signature (optional but recommended):    
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.4.1/kubetpl-0.4.1-$(
+curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.5.0/kubetpl-0.5.0-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64.asc -o kubetpl.asc
 curl -sS https://keybase.io/shyiko/pgp_keys.asc | gpg --import
@@ -106,6 +106,8 @@ should produce [example/nginx-with-data-from-file.rendered+frozen.yml](example/n
 NOTE: this feature can be used regardless of the [Template flavor](#template-flavors) choice (or lack thereof (i.e. on its own)).
 
 ## ConfigMap/Secret "data-from-file" injection
+
+> kubetpl@0.5.0+ also supports [`kubetpl/data-from-env-file`](https://github.com/shyiko/kubetpl/issues/3). 
 
 Optionally, ConfigMap/Secret|s can be extended with `kubetpl/data-from-file` to load "data" from a list of files (relative to a template unless a different `-c/--chroot` is specified), e.g.  
 
