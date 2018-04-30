@@ -5,12 +5,12 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/shyiko/kubetpl/cli"
+	"github.com/shyiko/kubetpl/dotenv"
 	"github.com/shyiko/kubetpl/engine"
 	"github.com/shyiko/kubetpl/engine/processor"
 	yamlext "github.com/shyiko/kubetpl/yaml"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
@@ -151,7 +151,7 @@ func main() {
 	}
 	renderCmd.Flags().BoolVarP(&freeze, "freeze", "z", false, "Freeze ConfigMap/Secret|s")
 	renderCmd.Flags().StringArrayVar(&freezeRefs, "freeze-ref", nil,
-		"External ConfigMap/Secret|s that should not be included in output and yet references to which need to be '--freeze'd")
+		"External ConfigMap/Secret|s that should not be included in the output and yet references to which need to be '--freeze'd")
 	renderCmd.Flags().StringSliceVar(&freezeList, "freeze-list", nil,
 		"<kind>/<name>s to freeze (e.g. ConfigMap/foo, Secret/bar)")
 	renderCmd.Flags().StringP("type", "t", "", "Template flavor ($, go-template or template-kind)")
@@ -179,7 +179,8 @@ func main() {
 	renderCmd.Flags().StringArrayVarP(&configKeyValuePairs, "set", "s", []string{},
 		"<key>=<value> pairs (take precedence over --input files (if any))")
 	renderCmd.Flags().StringVarP(&chroot, "chroot", "c", "",
-		"\"kubetpl/data-from-file\" root directory (access to anything outside of --chroot will denied)")
+		"The root directory in which extensions like \"kubetpl/data-from-file\" are to be allowed to read files\n"+
+			"(access to anything outside of --chroot will denied)")
 	renderCmd.Flags().BoolVar(&allowFsAccess, "allow-fs-access", false,
 		`Shorthand for --chroot=<directory containing template>`)
 	renderCmd.Flags().StringP("output", "o", "", "Redirect output to a file")
@@ -406,9 +407,6 @@ func dirnameAbs(path string) (string, error) {
 	if path == "-" {
 		return os.Getwd()
 	}
-	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
-		return "", fmt.Errorf("\"kubetpl/data-from-file\" + https?:// is not supported at the moment")
-	}
 	return filepath.Abs(filepath.Dir(path))
 }
 
@@ -535,16 +533,12 @@ func parseYAML(data []byte) (map[string]interface{}, error) {
 }
 
 func parseDotEnv(data []byte) (map[string]interface{}, error) {
-	f, err := ini.Load(data)
+	env, err := dotenv.Parse(data)
 	if err != nil {
 		return nil, err
 	}
-	section, err := f.GetSection("")
-	if err != nil {
-		panic(err)
-	}
-	m := map[string]interface{}{}
-	for key, value := range section.KeysHash() {
+	m := make(map[string]interface{})
+	for key, value := range env {
 		m[key] = value
 	}
 	return m, nil
