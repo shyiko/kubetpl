@@ -415,6 +415,7 @@ func newTemplate(file string, flavor string) (engine.Template, error) {
 	if err != nil {
 		return nil, err
 	}
+	content = bytes.Replace(content, []byte("\r\n"), []byte("\n"), -1)
 	directives, err := parseDirectives(content)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %s", file, err.Error())

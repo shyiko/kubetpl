@@ -194,3 +194,27 @@ metadata:
   name: app-caed0c7
 `)
 }
+
+func TestCRLFIsNormalizedToLF(t *testing.T) {
+	tmplFile, err := ioutil.TempFile("", "kubetpl-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(tmplFile.Name(), []byte("# kubetpl:syntax:$\r\nkind: ConfigMap\r\nmetadata:\r\n  name: $NAME"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := map[string]interface{}{
+		"NAME": "windows",
+	}
+	actual, err := render([]string{tmplFile.Name()}, cfg, renderOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(actual) == 0 {
+		t.Fatal("len(rendered) == 0")
+	}
+	expected := "---\nkind: ConfigMap\nmetadata:\n  name: windows\n"
+	if string(actual) != expected {
+		t.Fatalf("actual: \n%s != expected: \n%s", actual, expected)
+	}
+}
