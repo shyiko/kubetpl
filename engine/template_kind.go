@@ -23,6 +23,7 @@ type TemplateKindTemplate struct {
 	Objects      []map[interface{}]interface{}
 	Parameters   []TemplateKindTemplateParameter
 	ObjectLabels map[string]string // todo: not implemented
+	dropNull     bool
 }
 
 type TemplateKindTemplateParameter struct {
@@ -34,7 +35,16 @@ type TemplateKindTemplateParameter struct {
 	Type        string // string, int, bool or base64 (optional just like rest of the fields (except name))
 }
 
-func NewTemplateKindTemplate(template []byte) (Template, error) {
+type TemplateKindTemplateOption = func(*TemplateKindTemplate) error
+
+func TemplateKindTemplateDropNull() TemplateKindTemplateOption {
+	return func(t *TemplateKindTemplate) error {
+		t.dropNull = true
+		return nil
+	}
+}
+
+func NewTemplateKindTemplate(template []byte, options ...TemplateKindTemplateOption) (Template, error) {
 	var doc []interface{}
 	for _, chunk := range yamlext.Chunk(template) {
 		var tpl TemplateKindTemplate
@@ -43,6 +53,11 @@ func NewTemplateKindTemplate(template []byte) (Template, error) {
 			return nil, err
 		}
 		if tpl.Kind == "Template" {
+			for _, option := range options {
+				if err := option(&tpl); err != nil {
+					return nil, err
+				}
+			}
 			doc = append(doc, tpl)
 			continue
 		}
@@ -104,7 +119,7 @@ func (t TemplateKindTemplate) Render(data map[string]interface{}) (res []byte, e
 	log.Debugf("data = %v", data)
 	var buf bytes.Buffer
 	for _, obj := range t.Objects {
-		uobj := traverse(
+		uobj := t.traverse(
 			obj,
 			func(value string) interface{} {
 				var implicit bool
@@ -230,34 +245,44 @@ func isBool(v interface{}) bool {
 	return false
 }
 
-func traverse(m map[interface{}]interface{}, cb func(value string) interface{}) map[interface{}]interface{} {
+func (t TemplateKindTemplate) traverse(m map[interface{}]interface{}, cb func(value string) interface{}) map[interface{}]interface{} {
 	um := make(map[interface{}]interface{}, len(m)) // todo: no need to create a map if values are not updated
 	for key, value := range m {
+		var updatedValue interface{}
 		switch v := value.(type) {
 		case map[interface{}]interface{}:
-			value = traverse(v, cb)
+			updatedValue = t.traverse(v, cb)
 		case []interface{}:
-			value = traverseSlice(v, cb)
+			updatedValue = t.traverseSlice(v, cb)
 		case string:
-			value = cb(v)
+			updatedValue = cb(v)
+		default:
+			updatedValue = v
 		}
-		um[key] = value
+		if updatedValue != nil || !t.dropNull || updatedValue == value {
+			um[key] = updatedValue
+		}
 	}
 	return um
 }
 
-func traverseSlice(m []interface{}, cb func(value string) interface{}) []interface{} {
-	up := make([]interface{}, len(m)) // todo: no need to create a slice if values are not updated
-	for index, value := range m {
+func (t TemplateKindTemplate) traverseSlice(m []interface{}, cb func(value string) interface{}) []interface{} {
+	var up []interface{} // todo: no need to create a slice if values are not updated
+	for _, value := range m {
+		var updatedValue interface{}
 		switch v := value.(type) {
 		case map[interface{}]interface{}:
-			value = traverse(v, cb)
+			updatedValue = t.traverse(v, cb)
 		case []interface{}:
-			value = traverseSlice(v, cb)
+			updatedValue = t.traverseSlice(v, cb)
 		case string:
-			value = cb(v)
+			updatedValue = cb(v)
+		default:
+			updatedValue = v
 		}
-		up[index] = value
+		if updatedValue != nil || !t.dropNull || updatedValue == value {
+			up = append(up, updatedValue)
+		}
 	}
 	return up
 }

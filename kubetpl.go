@@ -443,7 +443,7 @@ func newTemplate(file string, flavor string) (engine.Template, error) {
 	case "go-template":
 		return engine.NewGoTemplate(content, file)
 	case "template-kind":
-		return engine.NewTemplateKindTemplate(content)
+		return engine.NewTemplateKindTemplate(content, engine.TemplateKindTemplateDropNull())
 	default:
 		if flavor != "" {
 			return nil, fmt.Errorf("%s: unknown template type \"%s\" "+

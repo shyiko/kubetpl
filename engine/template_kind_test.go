@@ -42,7 +42,7 @@ parameters:
 - name: STRING
   parameterType: string
 - name: BOOL
-  parameterType: int
+  parameterType: bool
 - name: INT
   parameterType: int
 `)),
@@ -97,5 +97,74 @@ parameters:
 	})
 	if err == nil || err.Error() != `"NAME" isn't set` {
 		t.Fatal()
+	}
+}
+
+func TestKindTemplateRenderDropNull(t *testing.T) {
+	actual, err := Must(NewTemplateKindTemplate(
+		[]byte(`kind: Template
+apiVersion: v1
+metadata:
+  name: template
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    ext/map1:
+      "0": $((P))
+      a: a
+      a1: $((P))
+      b: b
+      b0: $((P))
+      c: c
+      d: $((D))
+      c0: $((P))
+    ext/map2:
+      a: $((P))
+      b: $((P))
+      c: $((P))
+    ext/map3:
+      k: null
+    name: $(NAME)
+    ext/arr1: [$((P)), "a", $((P)), "b", $((P)), "c", $((P))]
+    ext/arr2: [$((P)), $((P)), $((P))]
+    ext/arr3: [null]
+parameters:
+- name: NAME
+  required: true
+  parameterType: string
+- name: P
+  parameterType: string
+- name: D
+  parameterType: string
+  value: d
+`), TemplateKindTemplateDropNull()),
+	).Render(map[string]interface{}{"NAME": "app", "NOT_USED": "value"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := `---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  ext/arr1:
+  - a
+  - b
+  - c
+  ext/arr2: []
+  ext/arr3:
+  - null
+  ext/map1:
+    a: a
+    b: b
+    c: c
+    d: d
+  ext/map2: {}
+  ext/map3:
+    k: null
+  name: app
+`
+	if string(actual) != expected {
+		t.Fatalf("actual: \n%s != expected: \n%s", actual, expected)
 	}
 }
