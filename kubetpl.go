@@ -458,12 +458,12 @@ func newTemplate(file string, flavor string) (engine.Template, error) {
 					" / add \"# kubetpl:syntax:<$|go-template|template-kind>\"?", file, err.Error())
 			}
 			if m["kind"] == "Template" {
-				log.Warnf("%s appears to contain \"kind: Template\"" +
-					" (please either use `--syntax=go-template` or add \"# kubetpl:syntax:go-template\" to the template)")
+				log.Warnf("%s is missing \"# kubetpl:syntax:template-kind\""+
+					" (use `--syntax=template-kind` if you can't add \"# kubetpl:syntax:template-kind\" to the template)", file)
 				break
 			}
 		}
-		return engine.NewTemplateKindTemplate(content) // change to simple pass-through in 1.0.0
+		return engine.NewTemplateKindTemplate(content, engine.TemplateKindTemplateDropNull()) // change to simple pass-through in 1.0.0
 	}
 }
 
