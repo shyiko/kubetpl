@@ -41,6 +41,7 @@ func init() {
 	}
 	secret[kindPod] = []string{
 		"spec.containers[*].env[*].valueFrom.secretKeyRef.name",
+		"spec.initContainers[*].env[*].valueFrom.secretKeyRef.name",
 		"spec.volumes[*].secret.secretName",
 	}
 	for _, kind := range []string{
@@ -56,6 +57,7 @@ func init() {
 		}
 		secret[kind] = []string{
 			"spec.template.spec.containers[*].env[*].valueFrom.secretKeyRef.name",
+			"spec.template.spec.initContainers[*].env[*].valueFrom.secretKeyRef.name",
 			"spec.template.spec.volumes[*].secret.secretName",
 		}
 	}
@@ -64,6 +66,7 @@ func init() {
 	}
 	secret[kindCronJob] = []string{
 		"spec.jobTemplate.spec.template.spec.containers[*].env[*].valueFrom.secretKeyRef.name",
+		"spec.jobTemplate.spec.template.spec.initContainers[*].env[*].valueFrom.secretKeyRef.name",
 		"spec.jobTemplate.spec.template.spec.volumes[*].secret.secretName",
 	}
 	pathsToRewrite = map[kind]map[kind][]string{
