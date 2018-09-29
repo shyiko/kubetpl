@@ -38,6 +38,9 @@ func (f *simpleFormatter) Format(entry *log.Entry) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+const directiveSyntax = "syntax"
+const directiveSet = "set"
+
 func main() {
 	completion := cli.NewCompletion()
 	completed, err := completion.Execute()
@@ -332,9 +335,11 @@ func renderTemplates(templateFiles []string, config map[string]interface{}, opts
 			return nil, err
 		}
 	}
+	localOpts := opts // copy
+	localOpts.chroot = chroot
 	var objs []document
 	for _, templateFile := range templateFiles {
-		docs, err := renderTemplate(templateFile, config, opts.format, chroot, opts.chrootTemplateDir)
+		docs, err := renderTemplate(templateFile, config, localOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -343,12 +348,22 @@ func renderTemplates(templateFiles []string, config map[string]interface{}, opts
 	return objs, nil
 }
 
-func renderTemplate(templateFile string, config map[string]interface{}, format string, chroot string, chrootTemplateDir bool) ([]document, error) {
-	t, err := newTemplate(templateFile, format)
+func renderTemplate(templateFile string, config map[string]interface{}, opts renderOpts) ([]document, error) {
+	t, directives, err := newTemplate(templateFile, opts.format)
 	if err != nil {
 		return nil, err
 	}
-	out, err := t.Render(config)
+	data := make(map[string]interface{})
+	for _, d := range directives {
+		if d.Key == directiveSet {
+			split := strings.SplitN(d.Value, "=", 2)
+			data[split[0]] = split[1]
+		}
+	}
+	for k, v := range config {
+		data[k] = v
+	}
+	out, err := t.Render(data)
 	if err != nil {
 		return nil, err
 	}
@@ -356,8 +371,8 @@ func renderTemplate(templateFile string, config map[string]interface{}, format s
 	if err != nil {
 		return nil, err
 	}
-	templateChroot := chroot
-	if chroot == "" && chrootTemplateDir {
+	templateChroot := opts.chroot
+	if opts.chroot == "" && opts.chrootTemplateDir {
 		templateChroot = baseDir
 	}
 	if templateChroot != "" && !strings.HasSuffix(templateChroot, string(filepath.Separator)) {
@@ -410,18 +425,18 @@ func dirnameAbs(path string) (string, error) {
 	return filepath.Abs(filepath.Dir(path))
 }
 
-func newTemplate(file string, flavor string) (engine.Template, error) {
+func newTemplate(file string, flavor string) (engine.Template, []directive, error) {
 	content, err := readFile(file)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	content = bytes.Replace(content, []byte("\r\n"), []byte("\n"), -1)
 	directives, err := parseDirectives(content)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %s", file, err.Error())
+		return nil, nil, fmt.Errorf("%s: %s", file, err.Error())
 	}
 	for _, d := range directives {
-		if d.Key == "syntax" {
+		if d.Key == directiveSyntax {
 			flavor = d.Value
 		}
 	}
@@ -437,23 +452,24 @@ func newTemplate(file string, flavor string) (engine.Template, error) {
 			flavor = "go-template"
 		}
 	}
+	var t engine.Template
 	switch flavor {
 	case "$":
-		return engine.NewShellTemplate(content)
+		t, err = engine.NewShellTemplate(content)
 	case "go-template":
-		return engine.NewGoTemplate(content, file)
+		t, err = engine.NewGoTemplate(content, file)
 	case "template-kind":
-		return engine.NewTemplateKindTemplate(content, engine.TemplateKindTemplateDropNull())
+		t, err = engine.NewTemplateKindTemplate(content, engine.TemplateKindTemplateDropNull())
 	default:
 		if flavor != "" {
-			return nil, fmt.Errorf("%s: unknown template type \"%s\" "+
+			return nil, nil, fmt.Errorf("%s: unknown template type \"%s\" "+
 				"(expected \"$\", \"go-template\" or \"template-kind\")", file, flavor)
 		}
 		// warn if "kind: Template" is present
 		for _, chunk := range yamlext.Chunk(content) {
 			m := make(map[interface{}]interface{})
 			if err = yaml.Unmarshal(chunk, &m); err != nil {
-				return nil, fmt.Errorf("%s does not appear to be a valid YAML (%s).\n"+
+				return nil, nil, fmt.Errorf("%s does not appear to be a valid YAML (%s).\n"+
 					"Did you forget to specify `--syntax=<$|go-template|template-kind>`"+
 					" / add \"# kubetpl:syntax:<$|go-template|template-kind>\"?", file, err.Error())
 			}
@@ -463,8 +479,9 @@ func newTemplate(file string, flavor string) (engine.Template, error) {
 				break
 			}
 		}
-		return engine.NewTemplateKindTemplate(content, engine.TemplateKindTemplateDropNull()) // change to simple pass-through in 1.0.0
+		t, err = engine.NewTemplateKindTemplate(content, engine.TemplateKindTemplateDropNull()) // change to simple pass-through in 1.0.0
 	}
+	return t, directives, err
 }
 
 func readConfigFiles(path ...string) (map[string]interface{}, error) {
@@ -554,8 +571,8 @@ func parseDirectives(s []byte) ([]directive, error) {
 	for _, line := range strings.Split(string(s), "\n") {
 		if strings.HasPrefix(line, "# kubetpl:") {
 			split := append(strings.SplitN(line[strings.Index(line, ":")+1:], ":", 2), "")
-			key, value := strings.ToLower(split[0]), strings.ToLower(split[1])
-			if key != "syntax" {
+			key, value := split[0], split[1]
+			if key != directiveSyntax && key != directiveSet {
 				return nil, fmt.Errorf("unrecognized # kubetpl:%s directive", key)
 			}
 			d = append(d, directive{key, value})
