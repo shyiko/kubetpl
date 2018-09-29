@@ -8,11 +8,27 @@ import (
 )
 
 type ShellTemplate struct {
-	content []byte
+	content     []byte
+	ignoreUnset bool
 }
 
-func NewShellTemplate(template []byte) (Template, error) {
-	return ShellTemplate{template}, nil
+type ShellTemplateOption = func(*ShellTemplate) error
+
+func ShellTemplateIgnoreUnset() ShellTemplateOption {
+	return func(t *ShellTemplate) error {
+		t.ignoreUnset = true
+		return nil
+	}
+}
+
+func NewShellTemplate(template []byte, options ...ShellTemplateOption) (Template, error) {
+	tpl := ShellTemplate{template, false}
+	for _, option := range options {
+		if err := option(&tpl); err != nil {
+			return nil, err
+		}
+	}
+	return tpl, nil
 }
 
 func (t ShellTemplate) Render(data map[string]interface{}) (res []byte, err error) {
@@ -31,14 +47,14 @@ func (t ShellTemplate) Render(data map[string]interface{}) (res []byte, err erro
 			return nil, err
 		}
 	}
-	r, err := envsubst(string(t.content), data)
+	r, err := envsubst(string(t.content), data, t.ignoreUnset)
 	if err != nil {
 		return nil, err
 	}
 	return []byte(r), nil
 }
 
-func envsubst(value string, env map[string]interface{}) (res string, err error) {
+func envsubst(value string, env map[string]interface{}, ignoreUnset bool) (res string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -47,23 +63,26 @@ func envsubst(value string, env map[string]interface{}) (res string, err error) 
 			err = r.(error)
 		}
 	}()
-	res = expandWithLineColumnInfo(value, func(key string, line int, col int) string {
+	res = expandWithLineColumnInfo(value, func(key string, line int, col int) (string, bool) {
 		if key == "$" || key == "" {
-			return "$"
+			return "$", true
 		}
 		value, ok := env[key]
 		if !ok || value == nil {
+			if ignoreUnset {
+				return "", false
+			}
 			panic(fmt.Errorf("%d:%d: \"%s\" isn't set", line, col, key))
 		}
 		if !yamlext.IsBasicType(value) {
 			panic(fmt.Errorf("%d:%d: \"%s\" must be either a string, number or a boolean", line, col, key))
 		}
-		return fmt.Sprintf("%v", value)
+		return fmt.Sprintf("%v", value), true
 	})
 	return
 }
 
-func expandWithLineColumnInfo(s string, mapping func(string, int, int) string) string {
+func expandWithLineColumnInfo(s string, mapping func(string, int, int) (string, bool)) string {
 	buf := make([]byte, 0, 2*len(s))
 	i, l, n := 0, 0, 0
 	for j := 0; j < len(s); j++ {
@@ -73,7 +92,11 @@ func expandWithLineColumnInfo(s string, mapping func(string, int, int) string) s
 		} else if s[j] == '$' && j+1 < len(s) {
 			buf = append(buf, s[i:j]...)
 			name, w := getShellName(s[j+1:])
-			buf = append(buf, mapping(name, l+1, j-n+1)...)
+			if v, ok := mapping(name, l+1, j-n+1); ok {
+				buf = append(buf, v...)
+			} else {
+				buf = append(buf, s[j:j+1+w]...)
+			}
 			j += w
 			i = j + 1
 		}

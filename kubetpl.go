@@ -53,7 +53,7 @@ func main() {
 	}
 	var syntax, chroot string
 	var configFiles, configKeyValuePairs, freezeRefs, freezeList []string
-	var allowFsAccess, freeze bool
+	var allowFsAccess, ignoreUnset, freeze bool
 	rootCmd := &cobra.Command{
 		Use:  "kubetpl",
 		Long: "Kubernetes templates made easy (https://github.com/shyiko/kubetpl).",
@@ -133,6 +133,7 @@ func main() {
 				freeze:            freeze,
 				freezeRefs:        freezeRefs,
 				freezeList:        normalizedFreezeList,
+				ignoreUnset:       ignoreUnset,
 			})
 			if err != nil {
 				log.Fatal(err)
@@ -153,6 +154,7 @@ func main() {
 			"  kubetpl render template.yml -i staging.env -s KEY=VALUE",
 	}
 	renderCmd.Flags().BoolVarP(&freeze, "freeze", "z", false, "Freeze ConfigMap/Secret|s")
+	renderCmd.Flags().BoolVar(&ignoreUnset, "ignore-unset", false, "Keep $VAR/${VAR} if not set (e.g. \"echo 'kind: $A$B' | kubetpl r - -s A=X --syntax=$ --ignore-unset\" prints \"kind: X$B\")")
 	renderCmd.Flags().StringArrayVar(&freezeRefs, "freeze-ref", nil,
 		"External ConfigMap/Secret|s that should not be included in the output and yet references to which need to be '--freeze'd")
 	renderCmd.Flags().StringSliceVar(&freezeList, "freeze-list", nil,
@@ -265,6 +267,7 @@ type renderOpts struct {
 	freeze            bool
 	freezeRefs        []string
 	freezeList        []string
+	ignoreUnset       bool
 }
 
 func render(templateFiles []string, data map[string]interface{}, opts renderOpts) ([]byte, error) {
@@ -349,7 +352,7 @@ func renderTemplates(templateFiles []string, config map[string]interface{}, opts
 }
 
 func renderTemplate(templateFile string, config map[string]interface{}, opts renderOpts) ([]document, error) {
-	t, directives, err := newTemplate(templateFile, opts.format)
+	t, directives, err := newTemplate(templateFile, opts.format, opts.ignoreUnset)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +428,7 @@ func dirnameAbs(path string) (string, error) {
 	return filepath.Abs(filepath.Dir(path))
 }
 
-func newTemplate(file string, flavor string) (engine.Template, []directive, error) {
+func newTemplate(file string, flavor string, ignoreUnset bool) (engine.Template, []directive, error) {
 	content, err := readFile(file)
 	if err != nil {
 		return nil, nil, err
@@ -455,7 +458,11 @@ func newTemplate(file string, flavor string) (engine.Template, []directive, erro
 	var t engine.Template
 	switch flavor {
 	case "$":
-		t, err = engine.NewShellTemplate(content)
+		var opts []engine.ShellTemplateOption
+		if ignoreUnset {
+			opts = append(opts, engine.ShellTemplateIgnoreUnset())
+		}
+		t, err = engine.NewShellTemplate(content, opts...)
 	case "go-template":
 		t, err = engine.NewGoTemplate(content, file)
 	case "template-kind":
