@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.8.0](https://github.com/shyiko/kubetpl/compare/0.7.1...0.8.0) - 2018-09-28
+
+### Added
+- `# kubetpl:set:KEY=VALUE` directive as a way to provide defaults on "per-template" basis, e.g. 
+    ```yaml
+    echo $'
+    # kubetpl:syntax:$
+    # kubetpl:set:NAME=nginx
+    # kubetpl:set:REPLICAS=1
+
+    apiVersion: apps/v1beta1
+    kind: Deployment
+    metadata:
+      name: $NAME
+    spec:
+      replicas: $REPLICAS
+      template:
+        metadata:
+          labels:
+            name: $NAME      
+        spec:
+          containers:
+          - name: nginx
+            image: nginx:$VERSION
+    ' | kubetpl render - -s VERSION=1.7.9
+    ```
+- (go-template) `{{ if isset "VAR" }}...{{ end }}` to check if `VAR` is set.
+- (go-template) `{{ get "VAR" "default value" }}` as shorthand for `{{ if isset "VAR" }}{{ .VAR }}{{ else }}default value{{ end }}` (e.g. `{{ get "REPLICAS" 1 }}`).
+- `--ignore-unset` CLI flag (e.g. `echo 'kind: $A$B' | kubetpl r - -s A=X --syntax=$ --ignore-unset` prints `kind: X$B`).
+
+### Fixed
+- `--freeze`ing of `initContainers[*].env[*].valueFrom.secretKeyRef.name`.
+
 ## [0.7.1](https://github.com/shyiko/kubetpl/compare/0.7.0...0.7.1) - 2018-07-16
 
 ### Fixed
