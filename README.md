@@ -5,7 +5,7 @@ Kubernetes templates made easy.
 
 Features:
 - **Template flavor of your choice**
-  - [$](#$) (`$VAR` / `${VAR}`);
+  - [$](#-shell) (`$VAR` / `${VAR}`);
   - [go-template](#go-go-template) (go-template enriched with [sprig](http://masterminds.github.io/sprig/)); 
   - [template-kind](#template-kind) (`kind: Template`).
 - Support for **\*.env** (`<VAR>=<VAL>`) and **YAML** / **JSON** config files.
@@ -101,7 +101,7 @@ When `kubetpl render --freeze ...` is used, kubetpl rewrites `ConfigMap`/`Secret
 and then updates all the references (in `Pod`s / `DaemonSet`s / `Deployment`s / `Job`s / `ReplicaSet`s / `ReplicationController`s / `StatefulSet`s / `CronJob`s) with a new value.
 
 For example, executing [`kubetpl render --freeze example/nginx-with-data-from-file.yml -s NAME=app -s MESSAGE=msg`](example/nginx-with-data-from-file.yml) 
-should produce [example/nginx-with-data-from-file.rendered+frozen.yml](example/nginx-with-data-from-file.rendered+frozen.yml).
+should produce [example/nginx-with-data-from-file.rendered+frozen.yml](example/nginx-with-data-from-file.rendered+frozen.yml#L15).
  
 NOTE: this feature can be used regardless of the [Template flavor](#template-flavors) choice (or lack thereof (i.e. on its own)).
 
@@ -138,7 +138,7 @@ Template syntax is determined by first checking template for `# kubetpl:syntax:<
 and then, if not found, `--syntax=<$|go-template|template-kind>` command line option. In the absence of both, 
 kubetpl assumes that template is a regular resource definition file.
 
-### $
+### $ (shell)
 
 A type of template where all instances of $VAR / ${VAR} are replaced with corresponding values. If, for some variable, no value
 is given - an error will be raised. 
@@ -231,6 +231,24 @@ spec:
 </details>
 <p><p>
 
+[kubetpl@0.8.0+](https://github.com/shyiko/kubetpl/blob/master/CHANGELOG.md#080---2018-09-28) default values can be specified via `# kubetpl:set:KEY=VALUE` directive(s), e.g.
+
+```yaml
+# kubetpl:syntax:$
+# kubetpl:set:NAME=nginx
+# kubetpl:set:REPLICAS=1
+
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: $NAME
+  annotations:
+    version: $VERSION
+spec:
+  replicas: $REPLICAS
+...  
+``` 
+
 ### go-template
 
 > All functions provided by [sprig](http://masterminds.github.io/sprig/) are available  
@@ -240,10 +258,11 @@ A good overview of go-template|s can be found [here](https://gohugo.io/templates
 
 Some of the most commonly used expressions:
 * `{{ .VAR }}` - get the value of `VAR`;
+* `{{ if isset "VAR" }} ... {{ end }}` - render content between `}}` and `{{` only if .VAR is set;   
+* `{{ get "VAR" "default" }}` - get the value of `VAR`, return `"default"` if not set (e.g. `{{ get "REPLICAS" 1 }}`);   
 * `{{ .VAR | quote }}` - quote the value of VAR;   
 * `{{ .VAR | indent 4 }}` - indent value of VAR with 4 spaces;   
-* `{{ .VAR | b64enc }}` - base64-encode value of VAR;   
-* `{{- if def . VAR }} ... {{- end }}` - render content between `}}` and `{{` only if .VAR is set.   
+* `{{ .VAR | b64enc }}` - base64-encode value of VAR.   
 
 ##### Example
 
