@@ -56,3 +56,37 @@ metadata:
 		t.Fatal()
 	}
 }
+
+func TestGoTemplateRenderIsSetGet(t *testing.T) {
+	tpl := Must(NewGoTemplate(
+		[]byte(`x{{ .VAR }}x
+x{{ if isset "OPT_VAR" }}{{ .OPT_VAR }}{{ else }}default value{{ end }}x
+x{{ if def . "OPT_VAR" }}{{ .OPT_VAR }}{{ else }}default value{{ end }}x
+x{{ get "OPT_VAR" "default value" }}x
+`), "template"),
+	)
+	actual, err := tpl.Render(map[string]interface{}{"VAR": "value", "OPT_VAR": "value"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := `xvaluex
+xvaluex
+xvaluex
+xvaluex
+`
+	if string(actual) != expected {
+		t.Fatalf("actual: \n%s != expected: \n%s", actual, expected)
+	}
+	actualDef, err := tpl.Render(map[string]interface{}{"VAR": "value"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedDef := `xvaluex
+xdefault valuex
+xdefault valuex
+xdefault valuex
+`
+	if string(actualDef) != expectedDef {
+		t.Fatalf("actual: \n%s != expected: \n%s", actualDef, expectedDef)
+	}
+}
