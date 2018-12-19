@@ -26,7 +26,16 @@ spec:
         app: app
     spec:
       containers:
-      - image: nginx:1.7.9
+      - env:
+        - name: ROBOTS_TXT
+          valueFrom:
+            configMapKeyRef:
+              key: robots.txt
+              name: app
+        envFrom:
+        - configMapRef:
+            name: app
+        image: nginx:1.7.9
         name: nginx
         ports:
         - containerPort: 80

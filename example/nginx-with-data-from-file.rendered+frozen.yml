@@ -26,7 +26,16 @@ spec:
         app: app
     spec:
       containers:
-      - image: nginx:1.7.9
+      - env:
+        - name: ROBOTS_TXT
+          valueFrom:
+            configMapKeyRef:
+              key: robots.txt
+              name: app-fba46ca
+        envFrom:
+        - configMapRef:
+            name: app-fba46ca
+        image: nginx:1.7.9
         name: nginx
         ports:
         - containerPort: 80
