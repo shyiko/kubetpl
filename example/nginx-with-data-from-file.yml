@@ -31,6 +31,15 @@ spec:
         volumeMounts:
         - name: $NAME-volume
           mountPath: /usr/share/nginx/html
+        envFrom:
+        - configMapRef:
+            name: $NAME
+        env:
+        - name: ROBOTS_TXT
+          valueFrom:
+            configMapKeyRef:
+              name: $NAME
+              key: robots.txt
       volumes:
       - configMap:
           name: $NAME

@@ -53,6 +53,8 @@ func init() {
 		kindStatefulSet,
 	} {
 		configMap[kind] = []string{
+			"spec.template.spec.containers[*].env[*].valueFrom.configMapKeyRef.name",
+			"spec.template.spec.containers[*].envFrom[*].configMapRef.name",
 			"spec.template.spec.volumes[*].configMap.name",
 		}
 		secret[kind] = []string{
