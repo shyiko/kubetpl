@@ -4,9 +4,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type kind = string
@@ -15,6 +16,7 @@ const (
 	kindConfigMap             = "ConfigMap"
 	kindSecret                = "Secret"
 	kindPod                   = "Pod"
+	kindPodPreset             = "PodPreset"
 	kindDaemonSet             = "DaemonSet"
 	kindDeployment            = "Deployment"
 	kindJob                   = "Job"
@@ -37,11 +39,27 @@ func init() {
 	configMap := make(map[kind][]string)
 	secret := make(map[kind][]string)
 	configMap[kindPod] = []string{
+		"spec.initContainers[*].env[*].valueFrom.configMapKeyRef.name",
+		"spec.initContainers[*].envFrom[*].configMapRef.name",
+		"spec.containers[*].env[*].valueFrom.configMapKeyRef.name",
+		"spec.containers[*].envFrom[*].configMapRef.name",
 		"spec.volumes[*].configMap.name",
 	}
 	secret[kindPod] = []string{
-		"spec.containers[*].env[*].valueFrom.secretKeyRef.name",
 		"spec.initContainers[*].env[*].valueFrom.secretKeyRef.name",
+		"spec.initContainers[*].envFrom[*].secretRef.name",
+		"spec.containers[*].env[*].valueFrom.secretKeyRef.name",
+		"spec.containers[*].envFrom[*].secretRef.name",
+		"spec.volumes[*].secret.secretName",
+	}
+	configMap[kindPodPreset] = []string{
+		"spec.env[*].valueFrom.configMapKeyRef.name",
+		"spec.envFrom[*].configMapRef.name",
+		"spec.volumes[*].configMap.name",
+	}
+	secret[kindPodPreset] = []string{
+		"spec.env[*].valueFrom.secretKeyRef.name",
+		"spec.envFrom[*].secretRef.name",
 		"spec.volumes[*].secret.secretName",
 	}
 	for _, kind := range []string{
@@ -52,29 +70,23 @@ func init() {
 		kindReplicationController,
 		kindStatefulSet,
 	} {
-		configMap[kind] = []string{
-			"spec.template.spec.containers[*].env[*].valueFrom.configMapKeyRef.name",
-			"spec.template.spec.containers[*].envFrom[*].configMapRef.name",
-			"spec.template.spec.volumes[*].configMap.name",
-		}
-		secret[kind] = []string{
-			"spec.template.spec.containers[*].env[*].valueFrom.secretKeyRef.name",
-			"spec.template.spec.initContainers[*].env[*].valueFrom.secretKeyRef.name",
-			"spec.template.spec.volumes[*].secret.secretName",
-		}
+		configMap[kind] = mapWithPrefix(configMap[kindPod], "spec.template.")
+		secret[kind] = mapWithPrefix(secret[kindPod], "spec.template.")
 	}
-	configMap[kindCronJob] = []string{
-		"spec.jobTemplate.spec.template.spec.volumes[*].configMap.name",
-	}
-	secret[kindCronJob] = []string{
-		"spec.jobTemplate.spec.template.spec.containers[*].env[*].valueFrom.secretKeyRef.name",
-		"spec.jobTemplate.spec.template.spec.initContainers[*].env[*].valueFrom.secretKeyRef.name",
-		"spec.jobTemplate.spec.template.spec.volumes[*].secret.secretName",
-	}
+	configMap[kindCronJob] = mapWithPrefix(configMap[kindPod], "spec.jobTemplate.spec.template.")
+	secret[kindCronJob] = mapWithPrefix(secret[kindPod], "spec.jobTemplate.spec.template.")
 	pathsToRewrite = map[kind]map[kind][]string{
 		kindConfigMap: configMap,
 		kindSecret:    secret,
 	}
+}
+
+func mapWithPrefix(slice []string, prefix string) []string {
+	var s []string
+	for _, p := range slice {
+		s = append(s, prefix+p)
+	}
+	return s
 }
 
 type FreezeRequest struct {
@@ -160,7 +172,7 @@ nextAssertion:
 			}
 		}
 	}
-	// rewriting refs (up until this moment nothing should not have been mutated)
+	// rewriting refs (up until this moment nothing should have been mutated)
 	for _, obj := range r.Docs {
 		kind := obj["kind"].(string)
 		meta := obj["metadata"].(map[interface{}]interface{})
