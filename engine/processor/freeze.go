@@ -24,6 +24,7 @@ const (
 	kindReplicationController = "ReplicationController"
 	kindStatefulSet           = "StatefulSet"
 	kindCronJob               = "CronJob"
+	kindIngress               = "Ingress"
 )
 
 type frozenObjectRef struct {
@@ -61,6 +62,9 @@ func init() {
 		"spec.env[*].valueFrom.secretKeyRef.name",
 		"spec.envFrom[*].secretRef.name",
 		"spec.volumes[*].secret.secretName",
+	}
+	secret[kindIngress] = []string{
+		"spec.tls[*].secretName",
 	}
 	for _, kind := range []string{
 		kindDaemonSet,
@@ -247,6 +251,10 @@ func traverseRefs(
 		last := path[d+1:]
 		rr := []interface{}{obj}
 		for _, p := range strings.Split(path[0:d], "[*].") {
+			// Special case if there isn't a sub-key after the [*]
+			if strings.HasSuffix(p, "[*]") {
+				p = strings.TrimSuffix(p, "[*]")
+			}
 			var rn []interface{}
 			for _, r := range rr {
 				m, ok := r.(map[interface{}]interface{})
