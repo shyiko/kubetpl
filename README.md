@@ -21,14 +21,14 @@ Features:
 #### macOS / Linux
 
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.9.0/kubetpl-0.9.0-$(
+RELEASE=$(curl -s https://api.github.com/repos/shyiko/kubetpl/releases/latest | grep "tag_name" | cut -d ":" -f2 | cut -d "," -f1 | cut -d "\"" -f2) && curl -sSL https://github.com/shyiko/kubetpl/releases/download/$RELEASE/kubetpl-$RELEASE-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64 -o kubetpl && chmod a+x kubetpl && sudo mv kubetpl /usr/local/bin/
 ```
     
 Verify PGP signature (optional but recommended):    
 ```sh
-curl -sSL https://github.com/shyiko/kubetpl/releases/download/0.9.0/kubetpl-0.9.0-$(
+RELEASE=$(curl -s https://api.github.com/repos/shyiko/kubetpl/releases/latest | grep "tag_name" | cut -d ":" -f2 | cut -d "," -f1 | cut -d "\"" -f2) && curl -sSL https://github.com/shyiko/kubetpl/releases/download/$RELEASE/kubetpl-$RELEASE-$(
     bash -c '[[ $OSTYPE == darwin* ]] && echo darwin || echo linux'
   )-amd64.asc -o kubetpl.asc
 curl -sS https://keybase.io/shyiko/pgp_keys.asc | gpg --import
