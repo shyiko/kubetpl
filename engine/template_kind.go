@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	yamlext "github.com/shyiko/kubetpl/yaml"
 	"gopkg.in/yaml.v2"
 	"runtime"

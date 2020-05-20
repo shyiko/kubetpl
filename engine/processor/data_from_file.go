@@ -3,7 +3,7 @@ package processor
 import (
 	"encoding/base64"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/shyiko/kubetpl/dotenv"
 	"strings"
 )
