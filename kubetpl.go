@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/shyiko/kubetpl/cli"
 	"github.com/shyiko/kubetpl/dotenv"
 	"github.com/shyiko/kubetpl/engine"
