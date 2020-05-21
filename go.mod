@@ -1,4 +1,4 @@
-module github.com/superhuman/backend/forks/github.com/shyiko/kubetpl
+module github.com/shyiko/kubetpl
 
 go 1.14
 
