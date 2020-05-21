@@ -1,9 +1,0 @@
-package: github.com/shyiko/kubetpl
-import:
-- package: github.com/Masterminds/sprig
-- package: github.com/sirupsen/logrus
-- package: github.com/spf13/cobra
-- package: github.com/spf13/pflag
-- package: gopkg.in/ini.v1
-- package: gopkg.in/yaml.v2
-- package: github.com/posener/complete
