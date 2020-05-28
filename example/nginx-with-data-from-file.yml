@@ -12,6 +12,15 @@ kubetpl/data-from-file:
 metadata:
   name: $NAME
 ---
+apiVesion: v1
+kind: Secret
+metadata:
+  name: $NAME-ingress-secret
+type: Opaque
+kubetpl/data-from-file:
+- tls.key
+- tls.crt
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -44,3 +53,21 @@ spec:
       - configMap:
           name: $NAME
         name: $NAME-volume
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: $NAME-ingress
+spec:
+  tls:
+  - hosts:
+    - sslexample.foo.com
+    secretName: $NAME-ingress-secret
+  rules:
+    - host: sslexample.foo.com
+      http:
+        paths:
+        - path: /
+          backend:
+            serviceName: service1
+            servicePort: 80

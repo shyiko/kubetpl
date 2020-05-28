@@ -98,7 +98,7 @@ source <(kubetpl completion zsh)
 ## ConfigMap/Secret freezing
 
 When `kubetpl render --freeze ...` is used, kubetpl rewrites `ConfigMap`/`Secret`'s name to include hash of the content 
-and then updates all the references (in `Pod`s / `DaemonSet`s / `Deployment`s / `Job`s / `ReplicaSet`s / `ReplicationController`s / `StatefulSet`s / `CronJob`s) with a new value.
+and then updates all the references (in `Pod`s / `DaemonSet`s / `Deployment`s / `Job`s / `ReplicaSet`s / `ReplicationController`s / `StatefulSet`s / `CronJob`s / `Ingress`s) with a new value.
 
 For example, executing [`kubetpl render --freeze example/nginx-with-data-from-file.yml -s NAME=app -s MESSAGE=msg`](example/nginx-with-data-from-file.yml) 
 should produce [example/nginx-with-data-from-file.rendered+frozen.yml](example/nginx-with-data-from-file.rendered+frozen.yml#L15).
