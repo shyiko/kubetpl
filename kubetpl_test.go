@@ -36,6 +36,21 @@ func TestRender(t *testing.T) {
 	}
 }
 
+func TestRenderDirectory(t *testing.T) {
+	cfg := map[string]interface{}{
+		"NAME":    "nm",
+		"MESSAGE": "msg",
+	}
+	opts := renderOpts{}
+	renderedSh, err := render([]string{"example/directory"}, cfg, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(renderedSh) == 0 {
+		t.Fatal("len(rendered) == 0")
+	}
+}
+
 func TestRenderWithDataFromFile(t *testing.T) {
 	// todo: test secret ("data" must be base64-encoded)
 	src := []string{"example/nginx-with-data-from-file.yml"}

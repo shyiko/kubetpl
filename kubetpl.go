@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -270,7 +271,55 @@ type renderOpts struct {
 	ignoreUnset       bool
 }
 
+func expandDirectories(templateFiles []string, userSupplied bool) ([]string, error) {
+	var templates []string
+
+	extensions := sort.StringSlice{".yaml", ".yml", ".json"}
+	extensionCount := len(extensions)
+	sort.Strings(extensions)
+
+	for _, filename := range templateFiles {
+		fileInfo, err := os.Lstat(filename)
+		if err != nil {
+			return nil, err
+		}
+
+		if !fileInfo.Mode().IsDir() {
+			ext := filepath.Ext(filename)
+			idx := extensions.Search(ext)
+			if userSupplied || idx < extensionCount && extensions[idx] == ext {
+				templates = append(templates, filename)
+			}
+			continue
+		}
+
+		subfiles, err := ioutil.ReadDir(filename)
+		if err != nil {
+			return nil, err
+		}
+
+		var files []string
+		for _, file := range subfiles {
+			full := filepath.Join(filename, file.Name())
+			files = append(files, full)
+		}
+
+		files, err = expandDirectories(files, false)
+		if err != nil {
+			return nil, err
+		}
+
+		templates = append(templates, files...)
+	}
+
+	return templates, nil
+}
+
 func render(templateFiles []string, data map[string]interface{}, opts renderOpts) ([]byte, error) {
+	templateFiles, err := expandDirectories(templateFiles, true)
+	if err != nil {
+		return nil, err
+	}
 	objs, err := renderTemplates(templateFiles, data, opts)
 	if err != nil {
 		return nil, err
