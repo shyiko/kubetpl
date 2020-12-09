@@ -3,20 +3,22 @@ package main
 import (
 	"bytes"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/shyiko/kubetpl/cli"
-	"github.com/shyiko/kubetpl/dotenv"
-	"github.com/shyiko/kubetpl/engine"
-	"github.com/shyiko/kubetpl/engine/processor"
-	yamlext "github.com/shyiko/kubetpl/yaml"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/shyiko/kubetpl/cli"
+	"github.com/shyiko/kubetpl/dotenv"
+	"github.com/shyiko/kubetpl/engine"
+	"github.com/shyiko/kubetpl/engine/processor"
+	keyvault "github.com/shyiko/kubetpl/keyvault"
+	yamlext "github.com/shyiko/kubetpl/yaml"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v2"
 )
 
 var version string
@@ -42,6 +44,7 @@ const directiveSyntax = "syntax"
 const directiveSet = "set"
 
 func main() {
+
 	completion := cli.NewCompletion()
 	completed, err := completion.Execute()
 	if err != nil {
@@ -52,6 +55,7 @@ func main() {
 		os.Exit(0)
 	}
 	var syntax, chroot string
+	var configKeyVaultName string
 	var configFiles, configKeyValuePairs, freezeRefs, freezeList []string
 	var allowFsAccess, ignoreUnset, freeze bool
 	rootCmd := &cobra.Command{
@@ -89,6 +93,16 @@ func main() {
 				}
 				config[split[0]] = split[1]
 			}
+
+			if configKeyVaultName != "" {
+				azureKV := keyvault.New(configKeyVaultName)
+				secrets := azureKV.GetSecrets()
+
+				for _, secret := range secrets {
+					config[secret] = azureKV.GetSecret(secret)
+				}
+			}
+
 			var formatSlice []string
 			if syntax != "" {
 				formatSlice = append(formatSlice, syntax)
@@ -180,6 +194,7 @@ func main() {
 		"use --syntax=template-kind instead\n"+
 			"(if you wish to avoid typing --syntax=... - "+
 			"add \"# kubetpl:syntax:template-kind\" comment (preferably at the top of the template))")
+	renderCmd.Flags().StringVarP(&configKeyVaultName, "vault", "v", "", "Azure Key Vault Name")
 	renderCmd.Flags().StringArrayVarP(&configFiles, "input", "i", nil, "Config file(s) (*.{env,yml,yaml,json})")
 	renderCmd.Flags().StringArrayVarP(&configKeyValuePairs, "set", "s", []string{},
 		"<key>=<value> pairs (take precedence over --input files (if any))")
